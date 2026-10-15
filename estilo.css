@@ -1,0 +1,452 @@
+* { box-sizing: border-box; }
+
+html, body {
+  background: #f8fafc;
+  color: #111827;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* CELDAS CALENDARIO */
+.dia-celda {
+  min-height: 140px;
+  border-right: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 5px;
+  background: #ffffff;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: background 0.12s;
+}
+.dia-celda:hover { background: #f1f5f9; }
+.dia-celda.fuera-mes { background: #f8fafc; cursor: default; }
+.dia-celda.fin-semana { background: #fefce8; }
+.dia-celda.fin-semana:hover { background: #fef9c3; }
+.dia-celda.feriado { background: #fef2f2; }
+.dia-celda.hoy { box-shadow: inset 0 0 0 2px #3b82f6; }
+
+.dia-numero {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e293b;
+  font-family: "JetBrains Mono", monospace;
+  margin-bottom: 3px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.dia-celda.fin-semana .dia-numero { color: #a16207; }
+.dia-celda.fuera-mes .dia-numero { color: #cbd5e1; }
+
+.dia-badge {
+  font-size: 8px;
+  background: #dc2626;
+  color: white;
+  padding: 1px 4px;
+  border-radius: 6px;
+  font-weight: 700;
+}
+
+.dia-asignaciones {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.asig-chip {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 4px;
+  border-radius: 3px;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.15);
+}
+.asig-chip .franja-mini {
+  font-size: 7px;
+  opacity: 0.85;
+  font-family: "JetBrains Mono", monospace;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.asig-chip.finde-chip {
+  font-size: 10px;
+  padding: 3px 6px;
+  font-weight: 700;
+}
+
+/* DÍA DESHABILITADO */
+.dia-celda.deshabilitado {
+  background: repeating-linear-gradient(
+    45deg, #f1f5f9, #f1f5f9 6px, #e2e8f0 6px, #e2e8f0 12px
+  ) !important;
+  cursor: not-allowed;
+  opacity: 0.9;
+}
+.dia-celda.deshabilitado .dia-numero { color: #94a3b8; }
+.dia-celda.deshabilitado:hover {
+  background: repeating-linear-gradient(
+    45deg, #e2e8f0, #e2e8f0 6px, #cbd5e1 6px, #cbd5e1 12px
+  ) !important;
+}
+
+.dia-deshabilitado-tag {
+  font-size: 8px;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: #e2e8f0;
+  padding: 3px 6px;
+  border-radius: 3px;
+  align-self: flex-start;
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* CARDS */
+.franja-card, .prof-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+.prof-card:hover, .franja-card:hover {
+  border-color: #94a3b8;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+.prof-color-bar { width: 4px; align-self: stretch; border-radius: 2px; flex-shrink: 0; }
+.prof-body { flex: 1; min-width: 0; }
+.prof-nombre { font-size: 11px; font-weight: 700; color: #1e293b; text-transform: uppercase; }
+.prof-telefono { font-size: 10px; color: #64748b; font-family: "JetBrains Mono", monospace; display: flex; align-items: center; gap: 3px; }
+.prof-viaticos { font-size: 9px; color: #059669; font-weight: 600; margin-top: 2px; }
+.prof-viaticos.cero { color: #94a3b8; }
+.prof-acciones { display: flex; gap: 1px; opacity: 0.4; transition: opacity 0.15s; }
+.prof-card:hover .prof-acciones { opacity: 1; }
+.prof-btn {
+  width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 4px; color: #94a3b8; background: transparent; border: none; cursor: pointer;
+}
+.prof-btn:hover { background: #f1f5f9; color: #1e293b; }
+.prof-btn.delete:hover { background: #fee2e2; color: #dc2626; }
+
+.franja-color-dot { width: 24px; height: 24px; border-radius: 5px; flex-shrink: 0; }
+.franja-info { flex: 1; min-width: 0; }
+.franja-nombre { font-size: 11px; font-weight: 700; color: #1e293b; text-transform: uppercase; }
+.franja-horario { font-size: 10px; color: #64748b; font-family: "JetBrains Mono", monospace; }
+.franja-etiqueta {
+  font-size: 8px; background: #fef3c7; color: #92400e;
+  padding: 1px 5px; border-radius: 3px; font-weight: 700; margin-left: 4px;
+}
+
+/* MODALES */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(15,23,42,0.7);
+  backdrop-filter: blur(3px);
+  z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+  padding: 1rem;
+}
+.modal-overlay.hidden { display: none; }
+
+.modal-box {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+  width: 100%;
+  max-height: 92vh;
+  display: flex; flex-direction: column;
+  animation: fadeIn 0.18s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.modal-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.modal-title {
+  font-size: 13px; font-weight: 700; color: #1e293b;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  display: flex; align-items: center; gap: 8px;
+}
+.modal-close {
+  color: #94a3b8; background: none; border: none; cursor: pointer;
+  font-size: 18px; padding: 4px;
+}
+.modal-close:hover { color: #1e293b; }
+.modal-body { padding: 20px 24px; overflow-y: auto; flex: 1; }
+.modal-footer {
+  padding: 14px 24px;
+  border-top: 1px solid #e2e8f0;
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 8px; background: #f8fafc; flex-shrink: 0; flex-wrap: wrap;
+}
+
+/* BOTONES */
+.btn-primary {
+  padding: 8px 16px; font-size: 12px; font-weight: 600; color: white;
+  background: #1e293b; border: none; border-radius: 6px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-primary:hover { background: #0f172a; }
+.btn-secondary {
+  padding: 8px 16px; font-size: 12px; font-weight: 500; color: #475569;
+  background: white; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer;
+}
+.btn-secondary:hover { background: #f1f5f9; }
+.btn-warning {
+  padding: 8px 14px; font-size: 12px; font-weight: 500; color: #92400e;
+  background: #fef3c7; border: 1px solid #fcd34d; border-radius: 6px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-warning:hover { background: #fde68a; }
+.btn-danger {
+  padding: 8px 14px; font-size: 12px; font-weight: 600; color: #991b1b;
+  background: #fee2e2; border: 1px solid #fca5a5; border-radius: 6px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-danger:hover { background: #fecaca; }
+.btn-danger.reactivar { color: #166534; background: #dcfce7; border-color: #86efac; }
+.btn-danger.reactivar:hover { background: #bbf7d0; }
+
+/* SELECTOR SEMANAS */
+.semana-btn {
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 6px;
+  border: 2px solid #cbd5e1;
+  background: white;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.semana-btn:hover { border-color: #94a3b8; }
+.semana-btn.activa { background: #1e293b; color: white; border-color: #1e293b; }
+.semana-btn.tiene-datos {
+  position: relative;
+}
+.semana-btn.tiene-datos::after {
+  content: '';
+  position: absolute;
+  top: 4px; right: 4px;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+/* PATRÓN SEMANAL */
+.patron-section {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: white;
+}
+.patron-section-title {
+  background: #f1f5f9;
+  padding: 8px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #475569;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.patron-section-title.weekend {
+  background: #fef3c7;
+  color: #92400e;
+}
+.patron-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.patron-row:last-child { border-bottom: none; }
+.patron-row .patron-franja {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 180px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #1e293b;
+  text-transform: uppercase;
+}
+.patron-row .patron-color {
+  width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0;
+}
+.patron-row .patron-horario {
+  font-size: 9px;
+  color: #64748b;
+  font-family: "JetBrains Mono", monospace;
+  display: block;
+  font-weight: 400;
+  text-transform: none;
+  margin-top: 1px;
+}
+.patron-row select {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  font-size: 12px;
+  background: white;
+  cursor: pointer;
+}
+.patron-row select:focus {
+  outline: none;
+  border-color: #1e293b;
+  box-shadow: 0 0 0 2px rgba(30,41,59,0.1);
+}
+
+/* DÍA - EDICIÓN */
+.dia-franja-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+}
+.dia-franja-row .franja-pill {
+  font-size: 10px; font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 5px;
+  color: white;
+  text-transform: uppercase;
+  min-width: 130px;
+  text-align: center;
+}
+.dia-franja-row .franja-hora-mini {
+  font-size: 10px; color: #94a3b8;
+  font-family: "JetBrains Mono", monospace;
+  min-width: 90px;
+}
+.dia-franja-row select {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  font-size: 12px;
+  background: white;
+}
+
+/* COLORES */
+.color-opcion {
+  width: 32px; height: 32px; border-radius: 6px; cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.1s, border-color 0.12s;
+}
+.color-opcion:hover { transform: scale(1.1); }
+.color-opcion.seleccionado {
+  border-color: #1e293b;
+  box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #1e293b;
+}
+
+/* MENÚ */
+.print-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  min-width: 200px;
+  z-index: 50;
+  overflow: hidden;
+}
+.print-menu button {
+  width: 100%; text-align: left;
+  padding: 9px 12px;
+  font-size: 12px; color: #334155;
+  background: white; border: none; cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+}
+.print-menu button:hover { background: #f1f5f9; color: #0f172a; }
+.print-menu button i { color: #94a3b8; font-size: 11px; width: 14px; }
+
+/* TABLA RESUMEN */
+#tabla-resumen tr:nth-child(even) { background: #f8fafc; }
+#tabla-resumen td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+#tabla-resumen tr:hover { background: #f1f5f9; }
+/* ═══ SELECTOR DE DÍAS EN FRANJA ═══ */
+.dia-check-btn {
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 2px solid #cbd5e1;
+  border-radius: 6px;
+  background: white;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.12s;
+  user-select: none;
+}
+.dia-check-btn:hover { border-color: #94a3b8; color: #334155; }
+.dia-check-btn.activo {
+  background: #1e293b;
+  color: white;
+  border-color: #1e293b;
+}
+
+/* Chip en calendario ahora usa color de franja */
+.asig-chip {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 3px 5px;
+  border-radius: 3px;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+  box-shadow: inset 0 -1px 2px rgba(0,0,0,0.15);
+}
+.asig-chip .franja-mini {
+  font-size: 7px;
+  opacity: 0.9;
+  font-family: "JetBrains Mono", monospace;
+  margin-left: auto;
+  flex-shrink: 0;
+  background: rgba(0,0,0,0.2);
+  padding: 0 3px;
+  border-radius: 2px;
+}

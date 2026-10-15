@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guardias Médicas - Hospital San Cristóbal</title>
+<link rel="icon" href="hospital.png">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<link rel="stylesheet" href="estilo.css">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'sans-serif'],
+          mono: ['JetBrains Mono', 'monospace'],
+        }
+      }
+    }
+  }
+</script>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-50">
+
+<!-- HEADER -->
+<header class="no-print bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+  <div class="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4 flex-wrap">
+    <div class="flex items-center gap-3">
+      <img src="hospital.png" alt="Hospital" class="w-12 h-12 object-contain">
+      <div>
+        <h1 class="text-sm font-bold text-slate-800 leading-tight">GUARDIAS MÉDICAS</h1>
+        <p class="text-xs text-slate-500">Hospital San Cristóbal "Julio C. Villanueva"</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 flex-wrap">
+      <div class="flex items-center gap-2 bg-slate-100 rounded-lg px-3 py-1.5">
+        <button id="btn-mes-ant" class="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-white hover:text-slate-900 rounded transition">
+          <i class="fa-solid fa-chevron-left text-xs"></i>
+        </button>
+        <span id="titulo-mes" class="text-sm font-bold text-slate-800 min-w-[150px] text-center">Febrero 2026</span>
+        <button id="btn-mes-sig" class="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-white hover:text-slate-900 rounded transition">
+          <i class="fa-solid fa-chevron-right text-xs"></i>
+        </button>
+      </div>
+
+      <button id="btn-hoy" class="px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 border border-slate-200 rounded hover:bg-slate-200 transition flex items-center gap-1.5">
+        <i class="fa-solid fa-calendar-day text-slate-400"></i> Hoy
+      </button>
+
+      <button id="btn-patron" class="px-3 py-1.5 text-xs font-semibold text-white bg-slate-800 rounded hover:bg-slate-900 transition flex items-center gap-1.5 shadow-sm">
+        <i class="fa-solid fa-table-cells"></i> Patrón Semanal
+      </button>
+
+      <div class="relative" id="print-menu-wrapper">
+        <button id="btn-menu-pdf" class="px-3 py-1.5 text-xs font-semibold text-white bg-slate-800 rounded hover:bg-slate-900 transition flex items-center gap-1.5 shadow-sm">
+          <i class="fa-solid fa-bars"></i> Menú <i class="fa-solid fa-caret-down text-[10px] opacity-70"></i>
+        </button>
+        <div id="print-menu" class="print-menu hidden">
+          <button data-action="exportar-json"><i class="fa-solid fa-download"></i> Exportar JSON</button>
+          <button data-action="importar-json"><i class="fa-solid fa-upload"></i> Importar JSON</button>
+          <hr class="my-1 border-slate-100">
+          <button data-action="limpiar-mes"><i class="fa-solid fa-broom"></i> Limpiar mes actual</button>
+        </div>
+        <input type="file" id="file-import" accept=".json" class="hidden">
+      </div>
+
+      <img src="santa fe.webp" alt="Santa Fe" class="w-20 h-auto object-contain">
+    </div>
+  </div>
+</header>
+
+<!-- MAIN -->
+<main class="flex-1 max-w-[1800px] w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+  <aside class="no-print lg:col-span-4 space-y-4">
+
+    <!-- Profesionales -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="bg-slate-800 text-white px-5 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-user-doctor text-slate-300"></i>
+          <h2 class="text-sm font-bold uppercase tracking-wider">Profesionales</h2>
+          <span id="contador-prof" class="text-[10px] bg-slate-700 px-2 py-0.5 rounded-full font-mono">0</span>
+        </div>
+        <button id="btn-nuevo-prof" class="px-3 py-1.5 text-xs font-semibold bg-white text-slate-800 rounded hover:bg-slate-100 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-plus"></i> Nuevo
+        </button>
+      </div>
+      <div class="p-4 border-b border-slate-100">
+        <div class="relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+          <input type="text" id="inp-buscar-prof" placeholder="Buscar..."
+                 class="w-full pl-8 pr-3 py-2 text-xs border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-800 focus:outline-none">
+        </div>
+      </div>
+      <div id="lista-profesionales" class="max-h-[320px] overflow-y-auto p-3 space-y-2"></div>
+    </div>
+
+    <!-- Montos -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="bg-slate-700 text-white px-5 py-3 flex items-center gap-2">
+        <i class="fa-solid fa-dollar-sign text-slate-300"></i>
+        <h2 class="text-sm font-bold uppercase tracking-wider">Montos Globales</h2>
+      </div>
+      <div class="p-4 grid grid-cols-3 gap-3">
+        <div>
+          <label class="block text-[10px] font-semibold text-slate-600 mb-1 uppercase">L-V</label>
+          <input type="number" id="monto-lv" class="w-full text-xs px-2 py-1.5 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-800 focus:outline-none font-mono">
+        </div>
+        <div>
+          <label class="block text-[10px] font-semibold text-slate-600 mb-1 uppercase">Sábado</label>
+          <input type="number" id="monto-sab" class="w-full text-xs px-2 py-1.5 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-800 focus:outline-none font-mono">
+        </div>
+        <div>
+          <label class="block text-[10px] font-semibold text-slate-600 mb-1 uppercase">Domingo</label>
+          <input type="number" id="monto-dom" class="w-full text-xs px-2 py-1.5 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-800 focus:outline-none font-mono">
+        </div>
+      </div>
+    </div>
+
+    <!-- Franjas -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="bg-slate-800 text-white px-5 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-clock text-slate-300"></i>
+          <h2 class="text-sm font-bold uppercase tracking-wider">Franjas</h2>
+          <span id="contador-franjas" class="text-[10px] bg-slate-700 px-2 py-0.5 rounded-full font-mono">0</span>
+        </div>
+        <button id="btn-nueva-franja" class="px-2 py-1 text-[11px] font-semibold bg-white text-slate-800 rounded hover:bg-slate-100 transition flex items-center gap-1">
+          <i class="fa-solid fa-plus"></i> Nueva
+        </button>
+      </div>
+      <div id="lista-franjas" class="p-3 space-y-2 max-h-[320px] overflow-y-auto"></div>
+    </div>
+
+  </aside>
+
+  <section class="lg:col-span-8 space-y-5">
+
+    <!-- Calendario -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="grid grid-cols-7 bg-slate-800 text-white">
+        <div class="py-2.5 text-center text-xs font-bold uppercase tracking-wider">Lunes</div>
+        <div class="py-2.5 text-center text-xs font-bold uppercase tracking-wider">Martes</div>
+        <div class="py-2.5 text-center text-xs font-bold uppercase tracking-wider">Miércoles</div>
+        <div class="py-2.5 text-center text-xs font-bold uppercase tracking-wider">Jueves</div>
+        <div class="py-2.5 text-center text-xs font-bold uppercase tracking-wider">Viernes</div>
+        <div class="py-2.5 text-center text-xs font-bold uppercase tracking-wider bg-slate-700">Sábado</div>
+        <div class="py-2.5 text-center text-xs font-bold uppercase tracking-wider bg-slate-700">Domingo</div>
+      </div>
+      <div id="grilla-calendario" class="grid grid-cols-7"></div>
+    </div>
+
+    <!-- Tabla resumen -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="bg-slate-800 text-white px-5 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-table-list text-slate-300"></i>
+          <h2 class="text-sm font-bold uppercase tracking-wider">Resumen del Mes</h2>
+        </div>
+        <span id="total-mes" class="text-sm font-bold font-mono">$0</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs">
+          <thead class="bg-slate-100 text-slate-600 uppercase text-[10px] tracking-wider">
+            <tr>
+              <th class="text-left px-3 py-2 font-bold">Profesional</th>
+              <th class="text-center px-2 py-2 font-bold">Guardias</th>
+              <th class="text-center px-2 py-2 font-bold">1° Quinc.</th>
+              <th class="text-center px-2 py-2 font-bold">2° Quinc.</th>
+              <th class="text-center px-2 py-2 font-bold">Viáticos</th>
+              <th class="text-right px-3 py-2 font-bold">Total</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-resumen"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </section>
+
+</main>
+
+<!-- MODAL PATRÓN POR SEMANAS -->
+<div id="modal-patron" class="modal-overlay hidden">
+  <div class="modal-box max-w-3xl">
+    <div class="modal-header">
+      <div>
+        <h3 class="modal-title"><i class="fa-solid fa-table-cells text-slate-500"></i> Patrón Semanal</h3>
+        <p class="text-[11px] text-slate-500 mt-0.5">
+          Elegí una semana y asigná el profesional de cada franja. Sábado y Domingo se eligen aparte.
+        </p>
+      </div>
+      <button class="modal-close" data-close="modal-patron"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div class="modal-body">
+      <div class="mb-5 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+        <label class="block text-xs font-bold text-slate-600 mb-2 uppercase">Semana del mes</label>
+        <div id="selector-semanas" class="flex gap-2 flex-wrap"></div>
+        <p class="text-[11px] text-slate-500 mt-2" id="info-semana"></p>
+      </div>
+
+      <div id="contenido-patron" class="space-y-3"></div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" data-close="modal-patron">Cerrar</button>
+      <button class="btn-primary" id="btn-aplicar-semana">
+        <i class="fa-solid fa-wand-magic-sparkles"></i> Aplicar al calendario
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DÍA -->
+<div id="modal-dia" class="modal-overlay hidden">
+  <div class="modal-box max-w-2xl">
+    <div class="modal-header">
+      <div>
+        <h3 class="modal-title" id="titulo-modal-dia">Editar Día</h3>
+        <p class="text-[11px] text-slate-500 mt-0.5">Modificá los profesionales asignados a este día puntual.</p>
+      </div>
+      <button class="modal-close" data-close="modal-dia"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="modal-dia-contenido" class="modal-body space-y-3"></div>
+    <div class="modal-footer">
+      <div class="flex items-center gap-2">
+        <button class="btn-danger" id="btn-deshabilitar-dia">
+          <i class="fa-solid fa-ban"></i> <span id="txt-toggle-dia">Deshabilitar día</span>
+        </button>
+        <button class="btn-warning" id="btn-restaurar-dia">
+          <i class="fa-solid fa-rotate-left"></i> Restaurar
+        </button>
+      </div>
+      <div class="flex gap-2">
+        <button class="btn-secondary" data-close="modal-dia">Cancelar</button>
+        <button class="btn-primary" id="btn-guardar-dia">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FRANJA (ACTUALIZADO) -->
+<div id="modal-franja" class="modal-overlay hidden">
+  <div class="modal-box max-w-lg">
+    <div class="modal-header">
+      <h3 class="modal-title" id="titulo-modal-franja">Nueva Franja</h3>
+      <button class="modal-close" data-close="modal-franja"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body space-y-4">
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Nombre</label>
+        <input type="text" id="franja-nombre" placeholder="Ej: Mañana, Tomografía, PASIVA..."
+               class="w-full text-sm px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-800 focus:outline-none">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Etiqueta (opcional)</label>
+        <input type="text" id="franja-etiqueta" placeholder="Ej: Tomo, PASIVA..."
+               class="w-full text-sm px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-800 focus:outline-none">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Desde</label>
+          <input type="time" id="franja-desde" value="08:00"
+                 class="w-full text-sm px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-800 focus:outline-none font-mono">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Hasta</label>
+          <input type="time" id="franja-hasta" value="14:00"
+                 class="w-full text-sm px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-800 focus:outline-none font-mono">
+        </div>
+      </div>
+
+      <!-- NUEVO: Selector de días de la semana -->
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-2">Días que aplica</label>
+        <div class="flex flex-wrap gap-2" id="franja-dias-container">
+          <label class="dia-check-btn" data-dia="1">
+            <input type="checkbox" value="1" class="hidden"> Lun
+          </label>
+          <label class="dia-check-btn" data-dia="2">
+            <input type="checkbox" value="2" class="hidden"> Mar
+          </label>
+          <label class="dia-check-btn" data-dia="3">
+            <input type="checkbox" value="3" class="hidden"> Mié
+          </label>
+          <label class="dia-check-btn" data-dia="4">
+            <input type="checkbox" value="4" class="hidden"> Jue
+          </label>
+          <label class="dia-check-btn" data-dia="5">
+            <input type="checkbox" value="5" class="hidden"> Vie
+          </label>
+        </div>
+        <p class="text-[10px] text-slate-400 mt-1">Marcá los días que aplica esta franja. Ej: Tomografía solo Martes y Jueves.</p>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Color</label>
+        <div class="flex gap-2 flex-wrap" id="franja-colores"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" data-close="modal-franja">Cancelar</button>
+      <button class="btn-primary" id="btn-guardar-franja">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PROFESIONAL -->
+<div id="modal-profesional" class="modal-overlay hidden">
+  <div class="modal-box max-w-lg">
+    <div class="modal-header">
+      <h3 class="modal-title" id="titulo-modal-prof">Nuevo Profesional</h3>
+      <button class="modal-close" data-close="modal-profesional"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body space-y-4">
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Apellido y Nombre <span class="text-rose-500">*</span></label>
+        <input type="text" id="prof-nombre" placeholder="Ej: PERGAZERE"
+               class="w-full text-sm px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-800 focus:outline-none uppercase">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Teléfono</label>
+        <input type="tel" id="prof-telefono" placeholder="Ej: 3408674664"
+               class="w-full text-sm px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-800 focus:outline-none font-mono">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Viáticos (monto fijo mensual)</label>
+        <input type="number" id="prof-viaticos" value="0"
+               class="w-full text-sm px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-800 focus:outline-none font-mono">
+        <p class="text-[10px] text-slate-400 mt-1">Se suma <strong>una sola vez</strong> al total del mes, solo si tiene guardias.</p>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Observaciones</label>
+        <textarea id="prof-observaciones" rows="2"
+                  class="w-full text-sm px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-800 focus:outline-none resize-none"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" data-close="modal-profesional">Cancelar</button>
+      <button class="btn-primary" id="btn-guardar-prof">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
