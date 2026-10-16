@@ -66,8 +66,8 @@ html, body {
 
 .asig-chip {
   font-size: 9px;
-  font-weight: 600;
-  padding: 2px 4px;
+  font-weight: 700;
+  padding: 3px 5px;
   border-radius: 3px;
   color: #ffffff;
   display: flex;
@@ -76,14 +76,18 @@ html, body {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  text-shadow: 0 1px 1px rgba(0,0,0,0.15);
+  text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+  box-shadow: inset 0 -1px 2px rgba(0,0,0,0.15);
 }
 .asig-chip .franja-mini {
   font-size: 7px;
-  opacity: 0.85;
+  opacity: 0.9;
   font-family: "JetBrains Mono", monospace;
   margin-left: auto;
   flex-shrink: 0;
+  background: rgba(0,0,0,0.2);
+  padding: 0 3px;
+  border-radius: 2px;
 }
 .asig-chip.finde-chip {
   font-size: 10px;
@@ -141,8 +145,6 @@ html, body {
 .prof-body { flex: 1; min-width: 0; }
 .prof-nombre { font-size: 11px; font-weight: 700; color: #1e293b; text-transform: uppercase; }
 .prof-telefono { font-size: 10px; color: #64748b; font-family: "JetBrains Mono", monospace; display: flex; align-items: center; gap: 3px; }
-.prof-viaticos { font-size: 9px; color: #059669; font-weight: 600; margin-top: 2px; }
-.prof-viaticos.cero { color: #94a3b8; }
 .prof-acciones { display: flex; gap: 1px; opacity: 0.4; transition: opacity 0.15s; }
 .prof-card:hover .prof-acciones { opacity: 1; }
 .prof-btn {
@@ -161,6 +163,15 @@ html, body {
   font-size: 8px; background: #fef3c7; color: #92400e;
   padding: 1px 5px; border-radius: 3px; font-weight: 700; margin-left: 4px;
 }
+.franja-tipo-badge {
+  font-size: 8px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 700;
+  margin-left: 4px;
+}
+.franja-tipo-badge.activa { background: #dbeafe; color: #1d4ed8; }
+.franja-tipo-badge.pasiva { background: #fef3c7; color: #92400e; }
 
 /* MODALES */
 .modal-overlay {
@@ -253,9 +264,7 @@ html, body {
 }
 .semana-btn:hover { border-color: #94a3b8; }
 .semana-btn.activa { background: #1e293b; color: white; border-color: #1e293b; }
-.semana-btn.tiene-datos {
-  position: relative;
-}
+.semana-btn.tiene-datos { position: relative; }
 .semana-btn.tiene-datos::after {
   content: '';
   position: absolute;
@@ -265,7 +274,7 @@ html, body {
   background: #22c55e;
 }
 
-/* PATRÓN SEMANAL */
+/* PATRÓN */
 .patron-section {
   border: 1px solid #e2e8f0;
   border-radius: 10px;
@@ -301,7 +310,7 @@ html, body {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-width: 180px;
+  min-width: 200px;
   font-size: 11px;
   font-weight: 700;
   color: #1e293b;
@@ -327,11 +336,6 @@ html, body {
   font-size: 12px;
   background: white;
   cursor: pointer;
-}
-.patron-row select:focus {
-  outline: none;
-  border-color: #1e293b;
-  box-shadow: 0 0 0 2px rgba(30,41,59,0.1);
 }
 
 /* DÍA - EDICIÓN */
@@ -377,34 +381,7 @@ html, body {
   box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #1e293b;
 }
 
-/* MENÚ */
-.print-menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-  min-width: 200px;
-  z-index: 50;
-  overflow: hidden;
-}
-.print-menu button {
-  width: 100%; text-align: left;
-  padding: 9px 12px;
-  font-size: 12px; color: #334155;
-  background: white; border: none; cursor: pointer;
-  display: flex; align-items: center; gap: 8px;
-}
-.print-menu button:hover { background: #f1f5f9; color: #0f172a; }
-.print-menu button i { color: #94a3b8; font-size: 11px; width: 14px; }
-
-/* TABLA RESUMEN */
-#tabla-resumen tr:nth-child(even) { background: #f8fafc; }
-#tabla-resumen td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
-#tabla-resumen tr:hover { background: #f1f5f9; }
-/* ═══ SELECTOR DE DÍAS EN FRANJA ═══ */
+/* SELECTOR DÍAS FRANJA */
 .dia-check-btn {
   padding: 8px 14px;
   font-size: 12px;
@@ -424,29 +401,430 @@ html, body {
   border-color: #1e293b;
 }
 
-/* Chip en calendario ahora usa color de franja */
-.asig-chip {
-  font-size: 9px;
+/* SELECTOR TIPO HORA */
+.tipo-check-btn {
+  flex: 1;
+  padding: 8px 14px;
+  font-size: 12px;
   font-weight: 700;
-  padding: 3px 5px;
-  border-radius: 3px;
-  color: #ffffff;
+  border: 2px solid #cbd5e1;
+  border-radius: 6px;
+  background: white;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.12s;
+  text-align: center;
+}
+.tipo-check-btn:hover { border-color: #94a3b8; }
+.tipo-check-btn.activo[data-tipo="activa"] {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-color: #3b82f6;
+}
+.tipo-check-btn.activo[data-tipo="pasiva"] {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #f59e0b;
+}
+
+/* MENÚ */
+.print-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  min-width: 220px;
+  z-index: 50;
+  overflow: hidden;
+}
+.print-menu button {
+  width: 100%; text-align: left;
+  padding: 9px 12px;
+  font-size: 12px; color: #334155;
+  background: white; border: none; cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+}
+.print-menu button:hover { background: #f1f5f9; color: #0f172a; }
+.print-menu button i { color: #94a3b8; font-size: 11px; width: 14px; }
+
+/* TABLA HORAS */
+#tabla-horas tr:nth-child(even) { background: #f8fafc; }
+#tabla-horas td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+#tabla-horas tr:hover { background: #f1f5f9; }
+#tabla-horas td.horas-activas { color: #1d4ed8; font-weight: 700; }
+#tabla-horas td.horas-pasivas { color: #92400e; font-weight: 700; }
+#tabla-horas td.horas-total { color: #166534; font-weight: 800; background: #f0fdf4; }
+
+/* OVERLAY PDF */
+#pdf-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15,23,42,0.55);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
-  gap: 3px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  text-shadow: 0 1px 1px rgba(0,0,0,0.2);
-  box-shadow: inset 0 -1px 2px rgba(0,0,0,0.15);
+  justify-content: center;
+  z-index: 100;
 }
-.asig-chip .franja-mini {
-  font-size: 7px;
-  opacity: 0.9;
+#pdf-overlay.hidden { display: none; }
+#pdf-overlay .box {
+  background: white;
+  padding: 24px 32px;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+}
+
+#pdf-render-container {
+  position: fixed;
+  left: -99999px;
+  top: 0;
+  width: 210mm;
+  background: white;
+}
+
+/* HOJA PDF */
+.hoja-pdf {
+  width: 210mm;
+  min-height: 297mm;
+  background: white;
+  padding: 8mm;
+  font-family: "Inter", sans-serif;
+  font-size: 9px;
+  color: #111827;
+  display: flex;
+  flex-direction: column;
+}
+.pdf-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 3px solid #1e293b;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+.pdf-header h1 {
+  font-size: 14px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #1e293b;
+  letter-spacing: 0.05em;
+}
+.pdf-header h2 {
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  margin-top: 2px;
+}
+.pdf-header img { height: 40px; width: auto; object-fit: contain; }
+
+.pdf-titulo-mes {
+  background: #1e293b;
+  color: white;
+  text-align: center;
+  padding: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+.pdf-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9px;
+  margin-bottom: 10px;
+}
+.pdf-tabla th {
+  background: #334155;
+  color: white;
+  padding: 5px 6px;
+  text-align: center;
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  border: 1px solid #1e293b;
+}
+.pdf-tabla td {
+  border: 1px solid #cbd5e1;
+  padding: 4px 6px;
+  text-align: center;
+  font-size: 9px;
+}
+.pdf-tabla td.dia {
+  background: #f1f5f9;
+  font-weight: 700;
   font-family: "JetBrains Mono", monospace;
-  margin-left: auto;
-  flex-shrink: 0;
-  background: rgba(0,0,0,0.2);
-  padding: 0 3px;
+  width: 30px;
+  color: #1e293b;
+}
+.pdf-tabla td.dia-fin {
+  background: #fef3c7;
+  color: #92400e;
+  font-weight: 700;
+  font-family: "JetBrains Mono", monospace;
+}
+.pdf-tabla td.dia-fer { background: #fee2e2; color: #b91c1c; }
+.pdf-tabla td.vacio { color: #cbd5e1; font-style: italic; font-size: 8px; }
+.pdf-tabla td.nombre {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.pdf-tabla tr.deshabilitado td {
+  background: repeating-linear-gradient(
+    45deg, #f1f5f9, #f1f5f9 4px, #e2e8f0 4px, #e2e8f0 8px
+  ) !important;
+  color: #94a3b8;
+  font-style: italic;
+}
+.pdf-finde { margin-top: 10px; margin-bottom: 10px; }
+.pdf-finde-titulo {
+  background: #78350f;
+  color: white;
+  padding: 5px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  border: 1px solid #78350f;
+}
+.pdf-resumen { margin-top: auto; }
+.pdf-resumen-titulo {
+  background: #1e293b;
+  color: white;
+  padding: 6px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.pdf-resumen table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9px;
+}
+.pdf-resumen th {
+  background: #334155;
+  color: white;
+  padding: 4px 6px;
+  font-size: 8px;
+  text-transform: uppercase;
+  border: 1px solid #1e293b;
+}
+.pdf-resumen td {
+  border: 1px solid #cbd5e1;
+  padding: 4px 6px;
+  text-align: center;
+}
+.pdf-resumen td.total-col { background: #f1f5f9; font-weight: 700; }
+.pdf-resumen tr.total-general td {
+  background: #1e293b;
+  color: white;
+  font-weight: 700;
+  font-size: 10px;
+}
+.pdf-footer {
+  margin-top: 10px;
+  padding-top: 6px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  font-size: 7px;
+  color: #94a3b8;
+}
+.pdf-firmas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  margin-top: 20px;
+  padding-top: 10px;
+}
+.pdf-firma-box {
+  text-align: center;
+  border-top: 1px solid #94a3b8;
+  padding-top: 4px;
+  font-size: 8px;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+/* HOJA CALENDARIO PDF */
+.hoja-calendario-pdf {
+  width: 210mm;
+  min-height: 297mm;
+  background: white;
+  padding: 8mm;
+  font-family: "Inter", sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+.pdf-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border: 1px solid #1e293b;
+  margin-top: 8px;
+}
+.pdf-cal-header {
+  background: #1e293b;
+  color: white;
+  padding: 6px 2px;
+  text-align: center;
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  border: 1px solid #1e293b;
+}
+.pdf-cal-celda {
+  border: 1px solid #cbd5e1;
+  min-height: 25mm;
+  padding: 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: white;
+}
+.pdf-cal-celda.fuera { background: #f8fafc; }
+.pdf-cal-celda.finde { background: #fefce8; }
+.pdf-cal-celda.feriado { background: #fef2f2; }
+.pdf-cal-celda.deshab {
+  background: repeating-linear-gradient(
+    45deg, #f1f5f9, #f1f5f9 4px, #e2e8f0 4px, #e2e8f0 8px
+  );
+}
+.pdf-cal-num {
+  font-size: 9px;
+  font-weight: 700;
+  font-family: "JetBrains Mono", monospace;
+  color: #1e293b;
+  margin-bottom: 2px;
+}
+.pdf-cal-chip {
+  font-size: 7px;
+  font-weight: 700;
+  padding: 2px 3px;
   border-radius: 2px;
+  color: white;
+  text-align: center;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+
+/* MODAL DETALLE PROFESIONAL */
+.detalle-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.detalle-card {
+  padding: 14px;
+  border-radius: 10px;
+  text-align: center;
+  border: 2px solid;
+}
+.detalle-card.activas {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+.detalle-card.pasivas {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #92400e;
+}
+.detalle-card.total {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+.detalle-card .label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.8;
+}
+.detalle-card .valor {
+  font-size: 24px;
+  font-weight: 800;
+  font-family: "JetBrains Mono", monospace;
+  margin-top: 4px;
+}
+.detalle-card .unidad {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.detalle-seccion-titulo {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.detalle-seccion-titulo::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 12px;
+  background: #1e293b;
+  border-radius: 2px;
+}
+
+.detalle-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.detalle-tabla th {
+  background: #f1f5f9;
+  color: #475569;
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #e2e8f0;
+}
+.detalle-tabla td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #f1f5f9;
+  font-family: "JetBrains Mono", monospace;
+}
+.detalle-tabla tr:last-child td {
+  border-bottom: none;
+}
+.detalle-tabla tr:hover td {
+  background: #f8fafc;
+}
+.detalle-tabla td.label-col {
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  color: #334155;
+}
+.detalle-tabla td.act {
+  color: #1d4ed8;
+  font-weight: 700;
+}
+.detalle-tabla td.pas {
+  color: #92400e;
+  font-weight: 700;
+}
+.detalle-tabla td.tot {
+  color: #166534;
+  font-weight: 800;
+  background: #f0fdf4;
+}
+.detalle-tabla td.vacio {
+  color: #cbd5e1;
+  font-style: italic;
 }

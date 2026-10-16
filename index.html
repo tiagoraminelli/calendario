@@ -3,12 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Guardias Médicas - Hospital San Cristóbal</title>
+<title>Cronograma Rayos - Hospital San Cristóbal</title>
 <link rel="icon" href="hospital.png">
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link rel="stylesheet" href="estilo.css">
 <script>
   tailwind.config = {
@@ -31,7 +33,7 @@
     <div class="flex items-center gap-3">
       <img src="hospital.png" alt="Hospital" class="w-12 h-12 object-contain">
       <div>
-        <h1 class="text-sm font-bold text-slate-800 leading-tight">GUARDIAS MÉDICAS</h1>
+        <h1 class="text-sm font-bold text-slate-800 leading-tight">CRONOGRAMA RAYOS</h1>
         <p class="text-xs text-slate-500">Hospital San Cristóbal "Julio C. Villanueva"</p>
       </div>
     </div>
@@ -57,9 +59,12 @@
 
       <div class="relative" id="print-menu-wrapper">
         <button id="btn-menu-pdf" class="px-3 py-1.5 text-xs font-semibold text-white bg-slate-800 rounded hover:bg-slate-900 transition flex items-center gap-1.5 shadow-sm">
-          <i class="fa-solid fa-bars"></i> Menú <i class="fa-solid fa-caret-down text-[10px] opacity-70"></i>
+          <i class="fa-solid fa-file-pdf"></i> PDF <i class="fa-solid fa-caret-down text-[10px] opacity-70"></i>
         </button>
         <div id="print-menu" class="print-menu hidden">
+          <button data-action="pdf-planilla"><i class="fa-solid fa-table"></i> PDF Planilla</button>
+          <button data-action="pdf-calendario"><i class="fa-solid fa-calendar"></i> PDF Calendario visual</button>
+          <hr class="my-1 border-slate-100">
           <button data-action="exportar-json"><i class="fa-solid fa-download"></i> Exportar JSON</button>
           <button data-action="importar-json"><i class="fa-solid fa-upload"></i> Importar JSON</button>
           <hr class="my-1 border-slate-100">
@@ -97,29 +102,7 @@
                  class="w-full pl-8 pr-3 py-2 text-xs border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-800 focus:outline-none">
         </div>
       </div>
-      <div id="lista-profesionales" class="max-h-[320px] overflow-y-auto p-3 space-y-2"></div>
-    </div>
-
-    <!-- Montos -->
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-      <div class="bg-slate-700 text-white px-5 py-3 flex items-center gap-2">
-        <i class="fa-solid fa-dollar-sign text-slate-300"></i>
-        <h2 class="text-sm font-bold uppercase tracking-wider">Montos Globales</h2>
-      </div>
-      <div class="p-4 grid grid-cols-3 gap-3">
-        <div>
-          <label class="block text-[10px] font-semibold text-slate-600 mb-1 uppercase">L-V</label>
-          <input type="number" id="monto-lv" class="w-full text-xs px-2 py-1.5 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-800 focus:outline-none font-mono">
-        </div>
-        <div>
-          <label class="block text-[10px] font-semibold text-slate-600 mb-1 uppercase">Sábado</label>
-          <input type="number" id="monto-sab" class="w-full text-xs px-2 py-1.5 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-800 focus:outline-none font-mono">
-        </div>
-        <div>
-          <label class="block text-[10px] font-semibold text-slate-600 mb-1 uppercase">Domingo</label>
-          <input type="number" id="monto-dom" class="w-full text-xs px-2 py-1.5 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-800 focus:outline-none font-mono">
-        </div>
-      </div>
+      <div id="lista-profesionales" class="max-h-[420px] overflow-y-auto p-3 space-y-2"></div>
     </div>
 
     <!-- Franjas -->
@@ -155,14 +138,14 @@
       <div id="grilla-calendario" class="grid grid-cols-7"></div>
     </div>
 
-    <!-- Tabla resumen -->
+    <!-- Tabla resumen de HORAS -->
     <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       <div class="bg-slate-800 text-white px-5 py-3 flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <i class="fa-solid fa-table-list text-slate-300"></i>
-          <h2 class="text-sm font-bold uppercase tracking-wider">Resumen del Mes</h2>
+          <i class="fa-solid fa-hourglass-half text-slate-300"></i>
+          <h2 class="text-sm font-bold uppercase tracking-wider">Horas del Mes</h2>
         </div>
-        <span id="total-mes" class="text-sm font-bold font-mono">$0</span>
+        <span id="total-horas" class="text-sm font-bold font-mono">0 h</span>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-xs">
@@ -170,13 +153,12 @@
             <tr>
               <th class="text-left px-3 py-2 font-bold">Profesional</th>
               <th class="text-center px-2 py-2 font-bold">Guardias</th>
-              <th class="text-center px-2 py-2 font-bold">1° Quinc.</th>
-              <th class="text-center px-2 py-2 font-bold">2° Quinc.</th>
-              <th class="text-center px-2 py-2 font-bold">Viáticos</th>
-              <th class="text-right px-3 py-2 font-bold">Total</th>
+              <th class="text-center px-2 py-2 font-bold text-blue-700">Activas</th>
+              <th class="text-center px-2 py-2 font-bold text-amber-700">Pasivas</th>
+              <th class="text-center px-2 py-2 font-bold">Total</th>
             </tr>
           </thead>
-          <tbody id="tabla-resumen"></tbody>
+          <tbody id="tabla-horas"></tbody>
         </table>
       </div>
     </div>
@@ -185,7 +167,7 @@
 
 </main>
 
-<!-- MODAL PATRÓN POR SEMANAS -->
+<!-- MODAL PATRÓN -->
 <div id="modal-patron" class="modal-overlay hidden">
   <div class="modal-box max-w-3xl">
     <div class="modal-header">
@@ -245,7 +227,7 @@
   </div>
 </div>
 
-<!-- MODAL FRANJA (ACTUALIZADO) -->
+<!-- MODAL FRANJA -->
 <div id="modal-franja" class="modal-overlay hidden">
   <div class="modal-box max-w-lg">
     <div class="modal-header">
@@ -263,6 +245,20 @@
         <input type="text" id="franja-etiqueta" placeholder="Ej: Tomo, PASIVA..."
                class="w-full text-sm px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-800 focus:outline-none">
       </div>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Tipo de hora</label>
+        <div class="flex gap-2">
+          <label class="tipo-check-btn activo" data-tipo="activa">
+            <input type="radio" name="franja-tipo" value="activa" class="hidden" checked> ACTIVA
+          </label>
+          <label class="tipo-check-btn" data-tipo="pasiva">
+            <input type="radio" name="franja-tipo" value="pasiva" class="hidden"> PASIVA
+          </label>
+        </div>
+        <p class="text-[10px] text-slate-400 mt-1">Activa: 08-12, 12-16. Pasiva: 16-20, 20-08.</p>
+      </div>
+
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="block text-xs font-medium text-slate-600 mb-1">Desde</label>
@@ -271,32 +267,20 @@
         </div>
         <div>
           <label class="block text-xs font-medium text-slate-600 mb-1">Hasta</label>
-          <input type="time" id="franja-hasta" value="14:00"
+          <input type="time" id="franja-hasta" value="12:00"
                  class="w-full text-sm px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-800 focus:outline-none font-mono">
         </div>
       </div>
 
-      <!-- NUEVO: Selector de días de la semana -->
       <div>
         <label class="block text-xs font-medium text-slate-600 mb-2">Días que aplica</label>
         <div class="flex flex-wrap gap-2" id="franja-dias-container">
-          <label class="dia-check-btn" data-dia="1">
-            <input type="checkbox" value="1" class="hidden"> Lun
-          </label>
-          <label class="dia-check-btn" data-dia="2">
-            <input type="checkbox" value="2" class="hidden"> Mar
-          </label>
-          <label class="dia-check-btn" data-dia="3">
-            <input type="checkbox" value="3" class="hidden"> Mié
-          </label>
-          <label class="dia-check-btn" data-dia="4">
-            <input type="checkbox" value="4" class="hidden"> Jue
-          </label>
-          <label class="dia-check-btn" data-dia="5">
-            <input type="checkbox" value="5" class="hidden"> Vie
-          </label>
+          <label class="dia-check-btn" data-dia="1"><input type="checkbox" value="1" class="hidden"> Lun</label>
+          <label class="dia-check-btn" data-dia="2"><input type="checkbox" value="2" class="hidden"> Mar</label>
+          <label class="dia-check-btn" data-dia="3"><input type="checkbox" value="3" class="hidden"> Mié</label>
+          <label class="dia-check-btn" data-dia="4"><input type="checkbox" value="4" class="hidden"> Jue</label>
+          <label class="dia-check-btn" data-dia="5"><input type="checkbox" value="5" class="hidden"> Vie</label>
         </div>
-        <p class="text-[10px] text-slate-400 mt-1">Marcá los días que aplica esta franja. Ej: Tomografía solo Martes y Jueves.</p>
       </div>
 
       <div>
@@ -330,12 +314,6 @@
                class="w-full text-sm px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-800 focus:outline-none font-mono">
       </div>
       <div>
-        <label class="block text-xs font-medium text-slate-600 mb-1">Viáticos (monto fijo mensual)</label>
-        <input type="number" id="prof-viaticos" value="0"
-               class="w-full text-sm px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-800 focus:outline-none font-mono">
-        <p class="text-[10px] text-slate-400 mt-1">Se suma <strong>una sola vez</strong> al total del mes, solo si tiene guardias.</p>
-      </div>
-      <div>
         <label class="block text-xs font-medium text-slate-600 mb-1">Observaciones</label>
         <textarea id="prof-observaciones" rows="2"
                   class="w-full text-sm px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-slate-800 focus:outline-none resize-none"></textarea>
@@ -347,6 +325,36 @@
     </div>
   </div>
 </div>
+
+<!-- MODAL DETALLE PROFESIONAL -->
+<div id="modal-detalle-prof" class="modal-overlay hidden">
+  <div class="modal-box max-w-2xl">
+    <div class="modal-header">
+      <div>
+        <h3 class="modal-title" id="detalle-titulo">Detalle del Profesional</h3>
+        <p class="text-[11px] text-slate-500 mt-0.5">Horas del mes en curso</p>
+      </div>
+      <button class="modal-close" data-close="modal-detalle-prof"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="detalle-contenido" class="modal-body space-y-5"></div>
+    <div class="modal-footer">
+      <div></div>
+      <button class="btn-primary" data-close="modal-detalle-prof">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Overlay PDF -->
+<div id="pdf-overlay" class="hidden">
+  <div class="box">
+    <div class="animate-spin rounded-full h-10 w-10 border-4 border-slate-200 border-t-slate-800 mx-auto mb-3"></div>
+    <p class="text-sm font-medium text-slate-800" id="pdf-overlay-text">Generando PDF...</p>
+    <p class="text-xs text-slate-500 mt-1" id="pdf-overlay-sub"></p>
+  </div>
+</div>
+
+<!-- Contenedor render PDF -->
+<div id="pdf-render-container"></div>
 
 <script src="app.js"></script>
 </body>

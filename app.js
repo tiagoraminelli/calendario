@@ -9,10 +9,9 @@ let diasDeshabilitados = {};
 let patronPorSemana = {};
 let semanaActiva = 1;
 let colorSeleccionado = null;
+let tipoHoraSeleccionado = 'activa';
 let editandoProfId = null;
 let diaEditandoISO = null;
-
-let montosGlobales = { lv: 310000, sab: 340000, dom: 340000 };
 
 const DIAS_SEMANA = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -31,13 +30,12 @@ const PALETA_COLORES = [
 const SABADO_KEY = 'sabado';
 const DOMINGO_KEY = 'domingo';
 
-// días: array de números donde 1=Lunes ... 5=Viernes (base Lunes=1)
 const FRANJAS_DEFAULT = [
-  { id: 'manana',   nombre: 'Mañana',      desde: '08:00', hasta: '14:00', color: '#fbbf24', etiqueta: '',        dias: [1,2,3,4,5] },
-  { id: 'tarde',    nombre: 'Tarde',       desde: '14:00', hasta: '20:00', color: '#f97316', etiqueta: '',        dias: [1,2,3,4,5] },
-  { id: 'tomo',     nombre: 'Tomografía',  desde: '08:00', hasta: '12:00', color: '#facc15', etiqueta: 'Tomo',    dias: [2,4]       },
-  { id: 'tardePas', nombre: 'Pasiva Tarde',desde: '16:00', hasta: '20:00', color: '#ef4444', etiqueta: 'PASIVA',  dias: [1,2,3,4,5] },
-  { id: 'nochePas', nombre: 'Pasiva Noche',desde: '20:00', hasta: '08:00', color: '#14b8a6', etiqueta: 'PASIVA',  dias: [1,2,3,4,5] }
+  { id: 'activa1', nombre: 'Activa Mañana',   desde: '08:00', hasta: '12:00', color: '#3b82f6', etiqueta: 'ACTIVA', tipo: 'activa', dias: [1,2,3,4,5] },
+  { id: 'activa2', nombre: 'Activa Mediodía', desde: '12:00', hasta: '16:00', color: '#0ea5e9', etiqueta: 'ACTIVA', tipo: 'activa', dias: [1,2,3,4,5] },
+  { id: 'tomo',    nombre: 'Tomografía',      desde: '08:00', hasta: '12:00', color: '#f59e0b', etiqueta: 'TOMO',   tipo: 'activa', dias: [2,4]       },
+  { id: 'pasiva1', nombre: 'Pasiva Tarde',    desde: '16:00', hasta: '20:00', color: '#f97316', etiqueta: 'PASIVA', tipo: 'pasiva', dias: [1,2,3,4,5] },
+  { id: 'pasiva2', nombre: 'Pasiva Noche',    desde: '20:00', hasta: '08:00', color: '#7c3aed', etiqueta: 'PASIVA', tipo: 'pasiva', dias: [1,2,3,4,5] }
 ];
 
 // ═══════════════════════════════════════════════════════════
@@ -49,22 +47,18 @@ const esFeriado = (d) => FERIADOS_FIJOS.includes(`${pad(d.getMonth()+1)}-${pad(d
 const esFinde = (d) => { const x = d.getDay(); return x === 0 || x === 6; };
 const esSabado = (d) => d.getDay() === 6;
 const esDomingo = (d) => d.getDay() === 0;
-const fmt = (n) => '$' + (Number(n)||0).toLocaleString('es-AR');
 const esc = (s) => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 const getProf = (id) => profesionales.find(p => p.id === id);
-const getFranja = (id) => franjas.find(f => f.id === id);
 
 const diaIdxLunes0 = (date) => {
   const d = date.getDay();
   return d === 0 ? 6 : d - 1;
 };
 
-// Devuelve el número de día con Lunes=1 ... Viernes=5 (para franjas)
-// Sáb=6, Dom=7
 const diaNumFranja = (date) => {
   const d = date.getDay();
-  if (d === 0) return 7; // Domingo
-  return d; // 1=Lun ... 6=Sáb
+  if (d === 0) return 7;
+  return d;
 };
 
 const lunesDeSemana = (date) => {
@@ -101,13 +95,11 @@ function formatCorto(d) {
   return `${pad(d.getDate())}/${pad(d.getMonth()+1)}`;
 }
 
-// Verifica si una franja aplica un día específico
 function franjaAplicaDia(franja, diaNum) {
   if (!franja.dias || !Array.isArray(franja.dias)) return true;
   return franja.dias.includes(diaNum);
 }
 
-// Texto de días para mostrar
 function textoDiasFranja(franja) {
   if (!franja.dias || franja.dias.length === 0 || franja.dias.length === 5) {
     return 'Lun a Vie';
@@ -116,33 +108,36 @@ function textoDiasFranja(franja) {
   return franja.dias.map(d => map[d] || '').filter(Boolean).join(' ');
 }
 
+function calcularHorasFranja(franja) {
+  const [h1, m1] = franja.desde.split(':').map(Number);
+  const [h2, m2] = franja.hasta.split(':').map(Number);
+  let minutos = (h2 * 60 + m2) - (h1 * 60 + m1);
+  if (minutos <= 0) minutos += 24 * 60;
+  return minutos / 60;
+}
+
 // ═══════════════════════════════════════════════════════════
 // PERSISTENCIA
 // ═══════════════════════════════════════════════════════════
 const LS = {
-  franjas: 'guardias_franjas',
-  profesionales: 'guardias_profesionales',
-  montos: 'guardias_montos',
-  asignaciones: 'guardias_asignaciones',
-  deshabilitados: 'guardias_dias_deshabilitados',
-  patron: 'guardias_patron_semana'
+  franjas: 'cronograma_franjas',
+  profesionales: 'cronograma_profesionales',
+  asignaciones: 'cronograma_asignaciones',
+  deshabilitados: 'cronograma_dias_deshabilitados',
+  patron: 'cronograma_patron_semana'
 };
 
 function cargarDatos() {
   try { franjas = JSON.parse(localStorage.getItem(LS.franjas)) || [...FRANJAS_DEFAULT]; } catch(e) { franjas = [...FRANJAS_DEFAULT]; }
   if (!Array.isArray(franjas) || franjas.length === 0) franjas = [...FRANJAS_DEFAULT];
 
-  // Migración: si alguna franja no tiene "dias", agregar Lun-Vie por defecto
   franjas.forEach(f => {
-    if (!Array.isArray(f.dias)) {
-      f.dias = f.soloTomo ? [2] : [1,2,3,4,5];
-    }
+    if (!Array.isArray(f.dias)) f.dias = [1,2,3,4,5];
+    if (!f.tipo) f.tipo = (f.etiqueta === 'PASIVA' || f.id?.includes('Pas') || f.id?.includes('pasiva')) ? 'pasiva' : 'activa';
   });
 
   try { profesionales = JSON.parse(localStorage.getItem(LS.profesionales)) || []; } catch(e) { profesionales = []; }
   if (!Array.isArray(profesionales)) profesionales = [];
-
-  try { montosGlobales = { ...montosGlobales, ...JSON.parse(localStorage.getItem(LS.montos) || '{}') }; } catch(e) {}
 
   try { asignacionesMes = JSON.parse(localStorage.getItem(LS.asignaciones)) || {}; } catch(e) { asignacionesMes = {}; }
 
@@ -156,7 +151,6 @@ function cargarDatos() {
 const guardar = {
   franjas: () => localStorage.setItem(LS.franjas, JSON.stringify(franjas)),
   profes: () => localStorage.setItem(LS.profesionales, JSON.stringify(profesionales)),
-  montos: () => localStorage.setItem(LS.montos, JSON.stringify(montosGlobales)),
   asig: () => localStorage.setItem(LS.asignaciones, JSON.stringify(asignacionesMes)),
   deshabilitados: () => localStorage.setItem(LS.deshabilitados, JSON.stringify(diasDeshabilitados)),
   patron: () => localStorage.setItem(LS.patron, JSON.stringify(patronPorSemana))
@@ -214,7 +208,7 @@ function renderCalendario() {
     $cont.append(crearCelda(new Date(año, mes + 1, i), true, hoyISO));
   }
 
-  renderTablaResumen();
+  renderTablaHoras();
 }
 
 function crearCelda(fecha, fueraMes, hoyISO) {
@@ -243,7 +237,6 @@ function crearCelda(fecha, fueraMes, hoyISO) {
     const asigs = asignacionesMes[iso] || {};
 
     if (esFinde(fecha)) {
-      // Sábado: chip morado oscuro. Domingo: chip rojo oscuro.
       const key = esSabado(fecha) ? SABADO_KEY : DOMINGO_KEY;
       const colorFinde = esSabado(fecha) ? '#a16207' : '#b91c1c';
       const profId = asigs[key];
@@ -256,13 +249,11 @@ function crearCelda(fecha, fueraMes, hoyISO) {
         }
       }
     } else {
-      // Lunes a Viernes: chip con color de la FRANJA
       franjas.forEach(f => {
         const profId = asigs[f.id];
         if (!profId) return;
         const p = getProf(profId);
         if (!p) return;
-        // Color del chip = color de la franja
         const $chip = $('<div>').addClass('asig-chip').css('background', f.color);
         $chip.html(`<span>${esc(p.nombre)}</span><span class="franja-mini">${f.desde}</span>`);
         $asigs.append($chip);
@@ -314,12 +305,9 @@ function renderProfesionales() {
     const $card = $(`
       <div class="prof-card">
         <div class="prof-color-bar" style="background:${p.color}"></div>
-        <div class="prof-body">
+        <div class="prof-body" data-detalle="${p.id}" style="cursor:pointer" title="Click para ver el detalle">
           <div class="prof-nombre">${esc(p.nombre)}</div>
           ${p.telefono ? `<div class="prof-telefono"><i class="fa-solid fa-phone text-[9px]"></i> ${esc(p.telefono)}</div>` : ''}
-          <div class="prof-viaticos ${(!p.viaticos || p.viaticos === 0) ? 'cero' : ''}">
-            <i class="fa-solid fa-money-bill-wave text-[9px]"></i> Viáticos: ${fmt(p.viaticos || 0)}
-          </div>
         </div>
         <div class="prof-acciones">
           <button class="prof-btn" data-edit="${p.id}" title="Editar"><i class="fa-solid fa-pen text-[10px]"></i></button>
@@ -339,13 +327,11 @@ function abrirModalProfesional(id = null) {
     $('#titulo-modal-prof').text('Editar Profesional');
     $('#prof-nombre').val(p.nombre || '');
     $('#prof-telefono').val(p.telefono || '');
-    $('#prof-viaticos').val(p.viaticos || 0);
     $('#prof-observaciones').val(p.observaciones || '');
   } else {
     $('#titulo-modal-prof').text('Nuevo Profesional');
     $('#prof-nombre').val('');
     $('#prof-telefono').val('');
-    $('#prof-viaticos').val(0);
     $('#prof-observaciones').val('');
   }
   $('#modal-profesional').removeClass('hidden');
@@ -359,7 +345,6 @@ function guardarProfesional() {
   const datos = {
     nombre: nombre.toUpperCase(),
     telefono: $('#prof-telefono').val().trim(),
-    viaticos: Number($('#prof-viaticos').val()) || 0,
     observaciones: $('#prof-observaciones').val().trim()
   };
 
@@ -406,6 +391,186 @@ function eliminarProfesional(id) {
 }
 
 // ═══════════════════════════════════════════════════════════
+// DETALLE DEL PROFESIONAL
+// ═══════════════════════════════════════════════════════════
+function abrirDetalleProfesional(id) {
+  const p = getProf(id);
+  if (!p) return;
+
+  const detalle = calcularDetalleProfesional(id);
+  const año = fechaActual.getFullYear();
+  const mes = fechaActual.getMonth();
+
+  $('#detalle-titulo').text(`${p.nombre} · ${MESES[mes]} ${año}`);
+
+  const $cont = $('#detalle-contenido').empty();
+
+  // Tarjetas resumen
+  const $cards = $(`
+    <div class="detalle-cards">
+      <div class="detalle-card activas">
+        <div class="label">Horas Activas</div>
+        <div class="valor">${detalle.totalActivas}<span class="unidad"> h</span></div>
+      </div>
+      <div class="detalle-card pasivas">
+        <div class="label">Horas Pasivas</div>
+        <div class="valor">${detalle.totalPasivas}<span class="unidad"> h</span></div>
+      </div>
+      <div class="detalle-card total">
+        <div class="label">Total</div>
+        <div class="valor">${detalle.totalGeneral}<span class="unidad"> h</span></div>
+      </div>
+    </div>
+  `);
+  $cont.append($cards);
+
+  // Por semana
+  const $secSem = $('<div>').append(
+    $('<div class="detalle-seccion-titulo">').html('<i class="fa-solid fa-calendar-week"></i> Por Semana')
+  );
+
+  let filasSem = '';
+  detalle.porSemana.forEach(s => {
+    const vacio = s.activas === 0 && s.pasivas === 0;
+    filasSem += `<tr>
+      <td class="label-col">Semana ${s.numero} <span style="color:#94a3b8;font-size:10px">(${s.rango})</span></td>
+      <td class="act ${vacio ? 'vacio' : ''}">${vacio ? '—' : s.activas + ' h'}</td>
+      <td class="pas ${vacio ? 'vacio' : ''}">${vacio ? '—' : s.pasivas + ' h'}</td>
+      <td class="tot ${vacio ? 'vacio' : ''}">${vacio ? '—' : s.total + ' h'}</td>
+    </tr>`;
+  });
+
+  $secSem.append(`
+    <table class="detalle-tabla">
+      <thead>
+        <tr>
+          <th>Semana</th>
+          <th style="text-align:right">Activas</th>
+          <th style="text-align:right">Pasivas</th>
+          <th style="text-align:right">Total</th>
+        </tr>
+      </thead>
+      <tbody>${filasSem}</tbody>
+    </table>
+  `);
+  $cont.append($secSem);
+
+  // Por franja
+  const $secFranja = $('<div>').append(
+    $('<div class="detalle-seccion-titulo">').html('<i class="fa-solid fa-clock"></i> Por Franja')
+  );
+
+  let filasFranja = '';
+  detalle.porFranja.forEach(f => {
+    if (f.cantidad === 0) return;
+    filasFranja += `<tr>
+      <td class="label-col">${esc(f.nombre)}${f.etiqueta ? ` <span style="font-size:9px;color:#94a3b8">(${esc(f.etiqueta)})</span>` : ''}</td>
+      <td style="text-align:right">${f.cantidad}×</td>
+      <td class="${f.tipo === 'pasiva' ? 'pas' : 'act'}" style="text-align:right">${f.horas} h</td>
+    </tr>`;
+  });
+
+  if (!filasFranja) {
+    filasFranja = `<tr><td colspan="3" class="text-center text-slate-400 py-4" style="font-family:Inter">Sin asignaciones este mes.</td></tr>`;
+  }
+
+  $secFranja.append(`
+    <table class="detalle-tabla">
+      <thead>
+        <tr>
+          <th>Franja</th>
+          <th style="text-align:right">Veces</th>
+          <th style="text-align:right">Horas</th>
+        </tr>
+      </thead>
+      <tbody>${filasFranja}</tbody>
+    </table>
+  `);
+  $cont.append($secFranja);
+
+  $('#modal-detalle-prof').removeClass('hidden');
+}
+
+function calcularDetalleProfesional(profId) {
+  const año = fechaActual.getFullYear();
+  const mes = fechaActual.getMonth();
+  const ultimoDia = new Date(año, mes + 1, 0).getDate();
+  const totalSemanas = cantidadSemanasDelMes(año, mes);
+
+  let totalActivas = 0;
+  let totalPasivas = 0;
+
+  const porSemana = [];
+  for (let s = 1; s <= totalSemanas; s++) {
+    const { lunes, domingo } = rangoSemana(año, mes, s);
+    porSemana.push({
+      numero: s,
+      rango: `${formatCorto(lunes)} - ${formatCorto(domingo)}`,
+      activas: 0,
+      pasivas: 0,
+      total: 0
+    });
+  }
+
+  const porFranja = {};
+  franjas.forEach(f => {
+    porFranja[f.id] = {
+      nombre: f.nombre,
+      etiqueta: f.etiqueta,
+      tipo: f.tipo,
+      cantidad: 0,
+      horas: 0
+    };
+  });
+  porFranja[SABADO_KEY] = { nombre: 'Sábado 24h', etiqueta: 'PASIVA', tipo: 'pasiva', cantidad: 0, horas: 0 };
+  porFranja[DOMINGO_KEY] = { nombre: 'Domingo 24h', etiqueta: 'PASIVA', tipo: 'pasiva', cantidad: 0, horas: 0 };
+
+  for (let d = 1; d <= ultimoDia; d++) {
+    const fecha = new Date(año, mes, d);
+    const iso = toISO(fecha);
+    if (diasDeshabilitados[iso]) continue;
+
+    const asigs = asignacionesMes[iso] || {};
+    const numSemana = numeroSemanaDelMes(fecha, año, mes);
+    const semIdx = numSemana - 1;
+
+    if (esFinde(fecha)) {
+      const key = esSabado(fecha) ? SABADO_KEY : DOMINGO_KEY;
+      if (asigs[key] === profId) {
+        porSemana[semIdx].pasivas += 24;
+        porSemana[semIdx].total += 24;
+        totalPasivas += 24;
+        porFranja[key].cantidad++;
+        porFranja[key].horas += 24;
+      }
+    } else {
+      franjas.forEach(f => {
+        if (asigs[f.id] !== profId) return;
+        const horas = calcularHorasFranja(f);
+        if (f.tipo === 'pasiva') {
+          porSemana[semIdx].pasivas += horas;
+          totalPasivas += horas;
+        } else {
+          porSemana[semIdx].activas += horas;
+          totalActivas += horas;
+        }
+        porSemana[semIdx].total += horas;
+        porFranja[f.id].cantidad++;
+        porFranja[f.id].horas += horas;
+      });
+    }
+  }
+
+  return {
+    totalActivas,
+    totalPasivas,
+    totalGeneral: totalActivas + totalPasivas,
+    porSemana,
+    porFranja: Object.values(porFranja)
+  };
+}
+
+// ═══════════════════════════════════════════════════════════
 // FRANJAS
 // ═══════════════════════════════════════════════════════════
 function renderFranjas() {
@@ -418,15 +583,16 @@ function renderFranjas() {
   }
 
   franjas.forEach(f => {
+    const horas = calcularHorasFranja(f);
     const $card = $(`
       <div class="franja-card">
         <div class="franja-color-dot" style="background:${f.color}"></div>
         <div class="franja-info">
           <div class="franja-nombre">
             ${esc(f.nombre)}
-            ${f.etiqueta ? `<span class="franja-etiqueta">${esc(f.etiqueta)}</span>` : ''}
+            <span class="franja-tipo-badge ${f.tipo}">${f.tipo === 'activa' ? 'ACTIVA' : 'PASIVA'}</span>
           </div>
-          <div class="franja-horario">${f.desde} - ${f.hasta} · ${textoDiasFranja(f)}</div>
+          <div class="franja-horario">${f.desde} - ${f.hasta} · ${horas}h · ${textoDiasFranja(f)}</div>
         </div>
         <button class="prof-btn delete" data-del-franja="${f.id}" title="Eliminar">
           <i class="fa-solid fa-trash-can text-[10px]"></i>
@@ -442,10 +608,14 @@ function abrirModalFranja() {
   $('#franja-nombre').val('');
   $('#franja-etiqueta').val('');
   $('#franja-desde').val('08:00');
-  $('#franja-hasta').val('14:00');
+  $('#franja-hasta').val('12:00');
   colorSeleccionado = PALETA_COLORES[0].valor;
+  tipoHoraSeleccionado = 'activa';
 
-  // Reset días: Lun-Vie por defecto
+  $('.tipo-check-btn').removeClass('activo');
+  $('.tipo-check-btn[data-tipo="activa"]').addClass('activo');
+  $('input[name="franja-tipo"][value="activa"]').prop('checked', true);
+
   $('#franja-dias-container .dia-check-btn').each(function() {
     const dia = Number($(this).data('dia'));
     const activo = dia >= 1 && dia <= 5;
@@ -475,7 +645,6 @@ function guardarFranja() {
   const hasta = $('#franja-hasta').val();
   if (!nombre || !desde || !hasta) { alert('Completá todos los campos.'); return; }
 
-  // Recopilar días seleccionados
   const diasSel = [];
   $('#franja-dias-container .dia-check-btn').each(function() {
     if ($(this).hasClass('activo')) {
@@ -494,6 +663,7 @@ function guardarFranja() {
     etiqueta: $('#franja-etiqueta').val().trim(),
     desde, hasta,
     color: colorSeleccionado || '#64748b',
+    tipo: tipoHoraSeleccionado,
     dias: diasSel
   });
 
@@ -554,7 +724,6 @@ function renderModalPatron() {
     return html;
   };
 
-  // Sección Lunes a Viernes
   let $sec = $(`
     <div class="patron-section">
       <div class="patron-section-title">
@@ -565,13 +734,15 @@ function renderModalPatron() {
 
   franjas.forEach(f => {
     const selected = datos[f.id] || '';
+    const horas = calcularHorasFranja(f);
     const $row = $(`
       <div class="patron-row">
         <div class="patron-franja">
           <div class="patron-color" style="background:${f.color}"></div>
           <div>
-            ${esc(f.nombre)}${f.etiqueta ? ` <span class="franja-etiqueta">${esc(f.etiqueta)}</span>` : ''}
-            <span class="patron-horario">${f.desde} - ${f.hasta} · ${textoDiasFranja(f)}</span>
+            ${esc(f.nombre)}
+            <span class="franja-tipo-badge ${f.tipo}">${f.tipo === 'activa' ? 'ACT' : 'PAS'}</span>
+            <span class="patron-horario">${f.desde} - ${f.hasta} · ${horas}h · ${textoDiasFranja(f)}</span>
           </div>
         </div>
         <select data-franja="${f.id}">${optsProf(selected)}</select>
@@ -581,18 +752,17 @@ function renderModalPatron() {
   });
   $cont.append($sec);
 
-  // Sábado
   const $sab = $(`
     <div class="patron-section">
       <div class="patron-section-title weekend">
-        <i class="fa-solid fa-calendar-day"></i> Sábado (24hs)
+        <i class="fa-solid fa-calendar-day"></i> Sábado (24hs · PASIVA)
       </div>
       <div class="patron-row">
         <div class="patron-franja">
           <div class="patron-color" style="background:#a16207"></div>
           <div>
             SÁBADO
-            <span class="patron-horario">00:00 - 24:00</span>
+            <span class="patron-horario">00:00 - 24:00 · 24h</span>
           </div>
         </div>
         <select data-franja="${SABADO_KEY}">${optsProf(datos[SABADO_KEY] || '')}</select>
@@ -601,18 +771,17 @@ function renderModalPatron() {
   `);
   $cont.append($sab);
 
-  // Domingo
   const $dom = $(`
     <div class="patron-section">
       <div class="patron-section-title weekend">
-        <i class="fa-solid fa-calendar-day"></i> Domingo (24hs)
+        <i class="fa-solid fa-calendar-day"></i> Domingo (24hs · PASIVA)
       </div>
       <div class="patron-row">
         <div class="patron-franja">
           <div class="patron-color" style="background:#b91c1c"></div>
           <div>
             DOMINGO
-            <span class="patron-horario">00:00 - 24:00</span>
+            <span class="patron-horario">00:00 - 24:00 · 24h</span>
           </div>
         </div>
         <select data-franja="${DOMINGO_KEY}">${optsProf(datos[DOMINGO_KEY] || '')}</select>
@@ -621,7 +790,6 @@ function renderModalPatron() {
   `);
   $cont.append($dom);
 
-  // Guardar cambios al vuelo
   $cont.find('select').on('change', function() {
     const fid = $(this).data('franja');
     const val = $(this).val();
@@ -667,10 +835,8 @@ function aplicarPatronAlMes() {
     } else if (esDomingo(fecha)) {
       if (patronSem[DOMINGO_KEY]) asignacionesMes[iso][DOMINGO_KEY] = patronSem[DOMINGO_KEY];
     } else {
-      // Lunes a Viernes
-      const diaNum = diaNumFranja(fecha); // 1-5
+      const diaNum = diaNumFranja(fecha);
       franjas.forEach(f => {
-        // Solo aplicar si esta franja va ese día
         if (!franjaAplicaDia(f, diaNum)) return;
         if (patronSem[f.id]) asignacionesMes[iso][f.id] = patronSem[f.id];
       });
@@ -731,12 +897,11 @@ function abrirModalDia(iso) {
     $cont.append($row);
   } else {
     franjas.forEach(f => {
-      // Solo mostrar franjas que aplican a este día
       if (!franjaAplicaDia(f, diaNum)) return;
       const $row = $(`
         <div class="dia-franja-row">
           <span class="franja-pill" style="background:${f.color}">
-            ${esc(f.nombre)}${f.etiqueta ? ' ('+esc(f.etiqueta)+')' : ''}
+            ${esc(f.nombre)}
           </span>
           <span class="franja-hora-mini">${f.desde}-${f.hasta}</span>
           <select data-franja="${f.id}">${optsProf(asigs[f.id] || '')}</select>
@@ -769,9 +934,9 @@ function guardarDiaManual() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// TABLA RESUMEN
+// CÁLCULO DE HORAS
 // ═══════════════════════════════════════════════════════════
-function renderTablaResumen() {
+function calcularHoras() {
   const año = fechaActual.getFullYear();
   const mes = fechaActual.getMonth();
   const ultimoDia = new Date(año, mes + 1, 0).getDate();
@@ -782,46 +947,57 @@ function renderTablaResumen() {
       nombre: p.nombre,
       color: p.color,
       guardias: 0,
-      q1: 0, q2: 0,
-      tieneGuardias: false
+      horasActivas: 0,
+      horasPasivas: 0,
+      total: 0
     };
   });
 
-  let totalMes = 0;
+  let totalHoras = 0;
 
   for (let d = 1; d <= ultimoDia; d++) {
     const fecha = new Date(año, mes, d);
     const iso = toISO(fecha);
-
     if (diasDeshabilitados[iso]) continue;
 
     const asigs = asignacionesMes[iso] || {};
 
-    let montoDia = montosGlobales.lv;
-    if (esFeriado(fecha)) montoDia = montosGlobales.dom;
-    else if (fecha.getDay() === 6) montoDia = montosGlobales.sab;
-    else if (fecha.getDay() === 0) montoDia = montosGlobales.dom;
-
-    Object.keys(asigs).forEach(fid => {
-      const profId = asigs[fid];
-      if (!acum[profId]) return;
-      acum[profId].guardias++;
-      acum[profId].tieneGuardias = true;
-      if (d <= 15) acum[profId].q1 += montoDia;
-      else acum[profId].q2 += montoDia;
-    });
+    if (esFinde(fecha)) {
+      const key = esSabado(fecha) ? SABADO_KEY : DOMINGO_KEY;
+      const profId = asigs[key];
+      if (profId && acum[profId]) {
+        acum[profId].guardias++;
+        acum[profId].horasPasivas += 24;
+        acum[profId].total += 24;
+        totalHoras += 24;
+      }
+    } else {
+      franjas.forEach(f => {
+        const profId = asigs[f.id];
+        if (!profId || !acum[profId]) return;
+        const horas = calcularHorasFranja(f);
+        acum[profId].guardias++;
+        if (f.tipo === 'pasiva') {
+          acum[profId].horasPasivas += horas;
+        } else {
+          acum[profId].horasActivas += horas;
+        }
+        acum[profId].total += horas;
+        totalHoras += horas;
+      });
+    }
   }
 
-  Object.keys(acum).forEach(pid => {
-    const a = acum[pid];
-    const p = getProf(pid);
-    if (a.tieneGuardias && p && p.viaticos > 0) a.viaticos = p.viaticos;
-    else a.viaticos = 0;
-    a.total = a.q1 + a.q2 + a.viaticos;
-    totalMes += a.total;
-  });
+  return { acum, totalHoras };
+}
 
-  const $tbody = $('#tabla-resumen').empty();
+// ═══════════════════════════════════════════════════════════
+// TABLA HORAS
+// ═══════════════════════════════════════════════════════════
+function renderTablaHoras() {
+  const { acum, totalHoras } = calcularHoras();
+
+  const $tbody = $('#tabla-horas').empty();
   let hayDatos = false;
 
   Object.keys(acum).forEach(pid => {
@@ -838,30 +1014,29 @@ function renderTablaResumen() {
           </div>
         </td>
         <td class="text-center font-mono">${a.guardias}</td>
-        <td class="text-center font-mono">${fmt(a.q1)}</td>
-        <td class="text-center font-mono">${fmt(a.q2)}</td>
-        <td class="text-center font-mono text-emerald-700">${fmt(a.viaticos)}</td>
-        <td class="text-right font-mono font-bold">${fmt(a.total)}</td>
+        <td class="text-center font-mono horas-activas">${a.horasActivas} h</td>
+        <td class="text-center font-mono horas-pasivas">${a.horasPasivas} h</td>
+        <td class="text-center font-mono horas-total">${a.total} h</td>
       </tr>
     `);
     $tbody.append($tr);
   });
 
   if (!hayDatos) {
-    $tbody.html(`<tr><td colspan="6" class="text-center py-6 text-slate-400 text-xs">Sin guardias asignadas. Definí el patrón semanal.</td></tr>`);
+    $tbody.html(`<tr><td colspan="5" class="text-center py-6 text-slate-400 text-xs">Sin guardias asignadas. Definí el patrón semanal.</td></tr>`);
   }
 
-  $('#total-mes').text(fmt(totalMes));
+  $('#total-horas').text(totalHoras + ' h');
 }
 
 // ═══════════════════════════════════════════════════════════
 // EXPORT / IMPORT / LIMPIAR
 // ═══════════════════════════════════════════════════════════
 function exportarJSON() {
-  const data = { franjas, profesionales, montosGlobales, asignacionesMes, diasDeshabilitados, patronPorSemana };
+  const data = { franjas, profesionales, asignacionesMes, diasDeshabilitados, patronPorSemana };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
-  const $a = $('<a>').attr({ href: url, download: `guardias_${toISO(new Date())}.json` });
+  const $a = $('<a>').attr({ href: url, download: `cronograma_${toISO(new Date())}.json` });
   $('body').append($a);
   $a[0].click();
   $a.remove();
@@ -875,22 +1050,17 @@ function importarJSON(file) {
       const data = JSON.parse(e.target.result);
       if (data.franjas) franjas = data.franjas;
       if (data.profesionales) profesionales = data.profesionales;
-      if (data.montosGlobales) montosGlobales = data.montosGlobales;
       if (data.asignacionesMes) asignacionesMes = data.asignacionesMes;
       if (data.diasDeshabilitados) diasDeshabilitados = data.diasDeshabilitados;
       if (data.patronPorSemana) patronPorSemana = data.patronPorSemana;
 
-      // Migración: agregar "dias" si falta
       franjas.forEach(f => {
         if (!Array.isArray(f.dias)) f.dias = [1,2,3,4,5];
+        if (!f.tipo) f.tipo = 'activa';
       });
 
-      guardar.franjas(); guardar.profes(); guardar.montos();
-      guardar.asig(); guardar.deshabilitados(); guardar.patron();
-
-      $('#monto-lv').val(montosGlobales.lv);
-      $('#monto-sab').val(montosGlobales.sab);
-      $('#monto-dom').val(montosGlobales.dom);
+      guardar.franjas(); guardar.profes(); guardar.asig();
+      guardar.deshabilitados(); guardar.patron();
 
       renderFranjas();
       renderProfesionales();
@@ -916,47 +1086,363 @@ function limpiarMesActual() {
 }
 
 // ═══════════════════════════════════════════════════════════
+// PDF
+// ═══════════════════════════════════════════════════════════
+function showOverlay(texto, sub) {
+  $('#pdf-overlay-text').text(texto || 'Generando PDF...');
+  $('#pdf-overlay-sub').text(sub || '');
+  $('#pdf-overlay').removeClass('hidden');
+}
+function hideOverlay() { $('#pdf-overlay').addClass('hidden'); }
+
+function buildFilename(sufijo) {
+  const año = fechaActual.getFullYear();
+  const mes = fechaActual.getMonth() + 1;
+  return `Cronograma_${MESES[mes-1]}_${año}_${sufijo}`;
+}
+
+async function generarPDFDesdeElemento(elemento, nombreArchivo) {
+  const { jsPDF } = window.jspdf;
+
+  const canvas = await html2canvas(elemento, {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: '#ffffff',
+    logging: false,
+    windowWidth: elemento.scrollWidth,
+    windowHeight: elemento.scrollHeight
+  });
+
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+  const pageWidth = 210, pageHeight = 297;
+  const imgData = canvas.toDataURL('image/jpeg', 0.95);
+  const imgWidth = pageWidth;
+  const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+  if (imgHeight <= pageHeight) {
+    pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+  } else {
+    let heightLeft = imgHeight, position = 0;
+    pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+  }
+
+  pdf.save(nombreArchivo + '.pdf');
+}
+
+function generarHTMLPlanilla() {
+  const año = fechaActual.getFullYear();
+  const mes = fechaActual.getMonth();
+  const ultimoDia = new Date(año, mes + 1, 0).getDate();
+
+  let filas = '';
+  for (let d = 1; d <= ultimoDia; d++) {
+    const fecha = new Date(año, mes, d);
+    const iso = toISO(fecha);
+    const diaSem = fecha.getDay();
+    const esFindeDia = diaSem === 0 || diaSem === 6;
+    const esFeriadoDia = esFeriado(fecha);
+    const deshab = diasDeshabilitados[iso];
+    const asigs = asignacionesMes[iso] || {};
+
+    if (esFindeDia) continue;
+
+    const clasesDia = ['dia'];
+    if (esFeriadoDia) clasesDia.push('dia-fer');
+
+    filas += `<tr class="${deshab ? 'deshabilitado' : ''}">`;
+    filas += `<td class="${clasesDia.join(' ')}">${d}</td>`;
+
+    if (deshab) {
+      filas += `<td colspan="${franjas.length}" class="vacio">DESHABILITADO</td>`;
+    } else {
+      franjas.forEach(f => {
+        const profId = asigs[f.id];
+        const prof = profId ? getProf(profId) : null;
+        const diaNum = diaNumFranja(fecha);
+        const aplica = franjaAplicaDia(f, diaNum);
+
+        if (!aplica) filas += `<td class="vacio">—</td>`;
+        else if (prof) filas += `<td class="nombre">${esc(prof.nombre)}</td>`;
+        else filas += `<td class="vacio">s/a</td>`;
+      });
+    }
+    filas += `</tr>`;
+  }
+
+  let headersFranjas = '';
+  franjas.forEach(f => {
+    const h = calcularHorasFranja(f);
+    headersFranjas += `<th>${esc(f.nombre)}<br><span style="font-size:7px;opacity:0.8">${f.desde}-${f.hasta} · ${h}h</span></th>`;
+  });
+
+  let filasFinde = '';
+  for (let d = 1; d <= ultimoDia; d++) {
+    const fecha = new Date(año, mes, d);
+    const iso = toISO(fecha);
+    const diaSem = fecha.getDay();
+    const deshab = diasDeshabilitados[iso];
+    const asigs = asignacionesMes[iso] || {};
+
+    if (diaSem === 6) {
+      const profId = asigs[SABADO_KEY];
+      const prof = profId ? getProf(profId) : null;
+      filasFinde += `<tr>
+        <td class="dia-fin">Sáb ${d}</td>
+        <td class="nombre">${deshab ? 'DESHAB' : (prof ? esc(prof.nombre) : 's/a')}</td>`;
+    } else if (diaSem === 0) {
+      const profId = asigs[DOMINGO_KEY];
+      const prof = profId ? getProf(profId) : null;
+      filasFinde += `<td class="dia-fin">Dom ${d}</td>
+        <td class="nombre">${deshab ? 'DESHAB' : (prof ? esc(prof.nombre) : 's/a')}</td>
+      </tr>`;
+    }
+  }
+
+  const { acum, totalHoras } = calcularHoras();
+  let filasResumen = '';
+  Object.keys(acum).forEach(pid => {
+    const a = acum[pid];
+    if (a.total === 0) return;
+    filasResumen += `<tr>
+      <td style="text-align:left;font-weight:700">${esc(a.nombre)}</td>
+      <td>${a.guardias}</td>
+      <td>${a.horasActivas} h</td>
+      <td>${a.horasPasivas} h</td>
+      <td class="total-col">${a.total} h</td>
+    </tr>`;
+  });
+
+  return `
+    <div class="hoja-pdf">
+      <div class="pdf-header">
+        <img src="hospital.png" alt="Hospital">
+        <div style="text-align:center;flex:1">
+          <h1>Cronograma Rayos — ${MESES[mes]} ${año}</h1>
+          <h2>Hospital San Cristóbal "Julio C. Villanueva"</h2>
+        </div>
+        <img src="santa fe.webp" alt="Santa Fe">
+      </div>
+
+      <div class="pdf-titulo-mes">CRONOGRAMA DE GUARDIAS</div>
+
+      <table class="pdf-tabla">
+        <thead>
+          <tr>
+            <th style="width:30px">Día</th>
+            ${headersFranjas}
+          </tr>
+        </thead>
+        <tbody>
+          ${filas}
+        </tbody>
+      </table>
+
+      ${filasFinde ? `
+        <div class="pdf-finde">
+          <div class="pdf-finde-titulo">Sábados y Domingos (24hs PASIVAS)</div>
+          <table class="pdf-tabla">
+            <tbody>${filasFinde}</tbody>
+          </table>
+        </div>
+      ` : ''}
+
+      <div class="pdf-resumen">
+        <div class="pdf-resumen-titulo">Horas del Mes</div>
+        <table>
+          <thead>
+            <tr>
+              <th style="text-align:left">Profesional</th>
+              <th>Guardias</th>
+              <th>Horas Activas</th>
+              <th>Horas Pasivas</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filasResumen}
+            <tr class="total-general">
+              <td colspan="4" style="text-align:right">TOTAL MES</td>
+              <td>${totalHoras} h</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pdf-firmas">
+        <div class="pdf-firma-box">Firma Responsable</div>
+        <div class="pdf-firma-box">Aclaración</div>
+      </div>
+
+      <div class="pdf-footer">
+        <span>Documento generado automáticamente</span>
+        <span>${new Date().toLocaleDateString('es-AR')}</span>
+      </div>
+    </div>
+  `;
+}
+
+function generarHTMLCalendarioPDF() {
+  const año = fechaActual.getFullYear();
+  const mes = fechaActual.getMonth();
+  const primerDia = new Date(año, mes, 1);
+  const ultimoDia = new Date(año, mes + 1, 0);
+  const offset = diaIdxLunes0(primerDia);
+
+  let celdas = '';
+  ['LUN','MAR','MIÉ','JUE','VIE','SÁB','DOM'].forEach(d => {
+    celdas += `<div class="pdf-cal-header">${d}</div>`;
+  });
+
+  const mesAntUltimo = new Date(año, mes, 0).getDate();
+  for (let i = offset - 1; i >= 0; i--) {
+    celdas += `<div class="pdf-cal-celda fuera"><div class="pdf-cal-num">${mesAntUltimo - i}</div></div>`;
+  }
+
+  for (let d = 1; d <= ultimoDia.getDate(); d++) {
+    const fecha = new Date(año, mes, d);
+    const iso = toISO(fecha);
+    const diaSem = fecha.getDay();
+    const esFindeDia = diaSem === 0 || diaSem === 6;
+    const esFeriadoDia = esFeriado(fecha);
+    const deshab = diasDeshabilitados[iso];
+    const asigs = asignacionesMes[iso] || {};
+
+    const clases = ['pdf-cal-celda'];
+    if (esFindeDia) clases.push('finde');
+    if (esFeriadoDia) clases.push('feriado');
+    if (deshab) clases.push('deshab');
+
+    let chips = '';
+    if (deshab) {
+      chips = `<div style="font-size:7px;color:#64748b;font-weight:700;text-align:center;margin-top:4px">DESHAB</div>`;
+    } else if (esFindeDia) {
+      const key = diaSem === 6 ? SABADO_KEY : DOMINGO_KEY;
+      const colorFinde = diaSem === 6 ? '#a16207' : '#b91c1c';
+      const profId = asigs[key];
+      if (profId) {
+        const p = getProf(profId);
+        if (p) chips += `<div class="pdf-cal-chip" style="background:${colorFinde}">${esc(p.nombre)}<br>24h</div>`;
+      }
+    } else {
+      const diaNum = diaNumFranja(fecha);
+      franjas.forEach(f => {
+        if (!franjaAplicaDia(f, diaNum)) return;
+        const profId = asigs[f.id];
+        if (!profId) return;
+        const p = getProf(profId);
+        if (!p) return;
+        chips += `<div class="pdf-cal-chip" style="background:${f.color}">${esc(p.nombre)}</div>`;
+      });
+    }
+
+    celdas += `<div class="${clases.join(' ')}">
+      <div class="pdf-cal-num">${d}</div>
+      ${chips}
+    </div>`;
+  }
+
+  const totalCeldas = offset + ultimoDia.getDate();
+  const restantes = (7 - (totalCeldas % 7)) % 7;
+  for (let i = 1; i <= restantes; i++) {
+    celdas += `<div class="pdf-cal-celda fuera"><div class="pdf-cal-num">${i}</div></div>`;
+  }
+
+  return `
+    <div class="hoja-calendario-pdf">
+      <div class="pdf-header">
+        <img src="hospital.png" alt="Hospital">
+        <div style="text-align:center;flex:1">
+          <h1>Cronograma Rayos — ${MESES[mes]} ${año}</h1>
+          <h2>Hospital San Cristóbal "Julio C. Villanueva"</h2>
+        </div>
+        <img src="santa fe.webp" alt="Santa Fe">
+      </div>
+      <div class="pdf-cal-grid">${celdas}</div>
+      <div class="pdf-footer">
+        <span>Documento generado automáticamente</span>
+        <span>${new Date().toLocaleDateString('es-AR')}</span>
+      </div>
+    </div>
+  `;
+}
+
+async function imprimirPlanillaPDF() {
+  $('#print-menu').addClass('hidden');
+  if (profesionales.length === 0) { alert('Cargá al menos un profesional.'); return; }
+  showOverlay('Generando PDF Planilla...', 'Esto puede tardar unos segundos');
+
+  const $cont = $('#pdf-render-container').empty();
+  const $wrapper = $('<div>').html(generarHTMLPlanilla());
+  $cont.append($wrapper);
+
+  await new Promise(r => setTimeout(r, 400));
+  try {
+    await generarPDFDesdeElemento($wrapper[0], buildFilename('Planilla'));
+  } catch(err) {
+    console.error(err);
+    alert('Error al generar el PDF: ' + err.message);
+  } finally {
+    hideOverlay();
+    $cont.empty();
+  }
+}
+
+async function imprimirCalendarioPDF() {
+  $('#print-menu').addClass('hidden');
+  if (profesionales.length === 0) { alert('Cargá al menos un profesional.'); return; }
+  showOverlay('Generando PDF Calendario...', 'Esto puede tardar unos segundos');
+
+  const $cont = $('#pdf-render-container').empty();
+  const $wrapper = $('<div>').html(generarHTMLCalendarioPDF());
+  $cont.append($wrapper);
+
+  await new Promise(r => setTimeout(r, 400));
+  try {
+    await generarPDFDesdeElemento($wrapper[0], buildFilename('Calendario'));
+  } catch(err) {
+    console.error(err);
+    alert('Error al generar el PDF: ' + err.message);
+  } finally {
+    hideOverlay();
+    $cont.empty();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════
 $(document).ready(function() {
 
   cargarDatos();
-  $('#monto-lv').val(montosGlobales.lv);
-  $('#monto-sab').val(montosGlobales.sab);
-  $('#monto-dom').val(montosGlobales.dom);
-
   renderFranjas();
   renderProfesionales();
   renderCalendario();
 
-  // Navegación
   $('#btn-mes-ant').on('click', () => cambiarMes(-1));
   $('#btn-mes-sig').on('click', () => cambiarMes(1));
   $('#btn-hoy').on('click', () => { fechaActual = new Date(); renderCalendario(); });
 
-  // Montos
-  $('#monto-lv, #monto-sab, #monto-dom').on('input', function() {
-    montosGlobales.lv = Number($('#monto-lv').val()) || 0;
-    montosGlobales.sab = Number($('#monto-sab').val()) || 0;
-    montosGlobales.dom = Number($('#monto-dom').val()) || 0;
-    guardar.montos();
-    renderTablaResumen();
-  });
-
-  // Profesionales
   $('#btn-nuevo-prof').on('click', () => abrirModalProfesional());
   $('#btn-guardar-prof').on('click', guardarProfesional);
   $('#inp-buscar-prof').on('input', renderProfesionales);
 
+  $(document).on('click', '[data-detalle]', function() {
+    abrirDetalleProfesional($(this).data('detalle'));
+  });
   $(document).on('click', '[data-edit]', function() { abrirModalProfesional($(this).data('edit')); });
   $(document).on('click', '[data-delete]', function() { eliminarProfesional($(this).data('delete')); });
 
-  // Franjas
   $('#btn-nueva-franja').on('click', abrirModalFranja);
   $('#btn-guardar-franja').on('click', guardarFranja);
   $(document).on('click', '[data-del-franja]', function() { eliminarFranja($(this).data('del-franja')); });
 
-  // Toggle días en modal franja
   $(document).on('click', '.dia-check-btn', function(e) {
     e.preventDefault();
     const $inp = $(this).find('input');
@@ -965,11 +1451,17 @@ $(document).ready(function() {
     $inp.prop('checked', nuevoEstado);
   });
 
-  // Patrón
+  $(document).on('click', '.tipo-check-btn', function(e) {
+    e.preventDefault();
+    $('.tipo-check-btn').removeClass('activo');
+    $(this).addClass('activo');
+    $(this).find('input').prop('checked', true);
+    tipoHoraSeleccionado = $(this).data('tipo');
+  });
+
   $('#btn-patron').on('click', abrirModalPatron);
   $('#btn-aplicar-semana').on('click', aplicarPatronAlMes);
 
-  // Día
   $('#btn-guardar-dia').on('click', guardarDiaManual);
   $('#btn-restaurar-dia').on('click', () => {
     if (!diaEditandoISO) return;
@@ -985,7 +1477,6 @@ $(document).ready(function() {
     toggleDiaDeshabilitado(diaEditandoISO);
   });
 
-  // Cerrar modales
   $('[data-close]').on('click', function() {
     $('#' + $(this).data('close')).addClass('hidden');
   });
@@ -993,7 +1484,6 @@ $(document).ready(function() {
     if (e.target === this) $(this).addClass('hidden');
   });
 
-  // Menú
   $('#btn-menu-pdf').on('click', function(e) {
     e.stopPropagation();
     $('#print-menu').toggleClass('hidden');
@@ -1004,6 +1494,8 @@ $(document).ready(function() {
     }
   });
 
+  $('[data-action="pdf-planilla"]').on('click', () => imprimirPlanillaPDF());
+  $('[data-action="pdf-calendario"]').on('click', () => imprimirCalendarioPDF());
   $('[data-action="exportar-json"]').on('click', () => { exportarJSON(); $('#print-menu').addClass('hidden'); });
   $('[data-action="importar-json"]').on('click', () => { $('#file-import').click(); $('#print-menu').addClass('hidden'); });
   $('[data-action="limpiar-mes"]').on('click', () => { limpiarMesActual(); $('#print-menu').addClass('hidden'); });
@@ -1013,5 +1505,5 @@ $(document).ready(function() {
     $(this).val('');
   });
 
-  console.log('✅ App lista — Franjas con días + chips por franja');
+  console.log('✅ Cronograma Rayos listo');
 });
