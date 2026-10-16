@@ -101,9 +101,7 @@ function franjaAplicaDia(franja, diaNum) {
 }
 
 function textoDiasFranja(franja) {
-  if (!franja.dias || franja.dias.length === 0 || franja.dias.length === 5) {
-    return 'Lun a Vie';
-  }
+  if (!franja.dias || franja.dias.length === 0 || franja.dias.length === 5) return 'Lun a Vie';
   const map = {1:'Lun',2:'Mar',3:'Mié',4:'Jue',5:'Vie'};
   return franja.dias.map(d => map[d] || '').filter(Boolean).join(' ');
 }
@@ -114,6 +112,21 @@ function calcularHorasFranja(franja) {
   let minutos = (h2 * 60 + m2) - (h1 * 60 + m1);
   if (minutos <= 0) minutos += 24 * 60;
   return minutos / 60;
+}
+
+function abrevFranja(nombre, etiqueta) {
+  if (!nombre) return '';
+  const n = nombre.toLowerCase();
+  if ((etiqueta || '').toUpperCase() === 'PASIVA' || n.includes('pasiva')) {
+    if (n.includes('tarde')) return 'T. Pas.';
+    if (n.includes('noche')) return 'N. Pas.';
+    return 'Pas.';
+  }
+  if (n.includes('tomo')) return 'Tomo';
+  if (n.includes('mañana')) return 'Mañana';
+  if (n.includes('tarde')) return 'Tarde';
+  if (n.includes('mediodía') || n.includes('mediodia')) return 'Mediodía';
+  return nombre.length > 10 ? nombre.substring(0, 9) + '.' : nombre;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -181,7 +194,7 @@ function actualizarBotonToggleDia() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// CALENDARIO
+// CALENDARIO (pantalla)
 // ═══════════════════════════════════════════════════════════
 function renderCalendario() {
   const año = fechaActual.getFullYear();
@@ -293,7 +306,8 @@ function renderProfesionales() {
 
   const filtrados = profesionales.filter(p =>
     (p.nombre || '').toLowerCase().includes(term) ||
-    (p.telefono || '').toLowerCase().includes(term)
+    (p.telefono || '').toLowerCase().includes(term) ||
+    (p.observaciones || '').toLowerCase().includes(term)
   );
 
   if (filtrados.length === 0) {
@@ -308,6 +322,7 @@ function renderProfesionales() {
         <div class="prof-body" data-detalle="${p.id}" style="cursor:pointer" title="Click para ver el detalle">
           <div class="prof-nombre">${esc(p.nombre)}</div>
           ${p.telefono ? `<div class="prof-telefono"><i class="fa-solid fa-phone text-[9px]"></i> ${esc(p.telefono)}</div>` : ''}
+          ${p.observaciones ? `<div class="prof-observaciones">${esc(p.observaciones)}</div>` : ''}
         </div>
         <div class="prof-acciones">
           <button class="prof-btn" data-edit="${p.id}" title="Editar"><i class="fa-solid fa-pen text-[10px]"></i></button>
@@ -405,7 +420,18 @@ function abrirDetalleProfesional(id) {
 
   const $cont = $('#detalle-contenido').empty();
 
-  // Tarjetas resumen
+  const $ficha = $(`
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;">
+      <div style="width:8px;height:40px;border-radius:4px;background:${p.color};flex-shrink:0;"></div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:800;color:#0f172a;text-transform:uppercase;letter-spacing:0.03em;">${esc(p.nombre)}</div>
+        ${p.telefono ? `<div style="font-size:11px;color:#64748b;font-family:'JetBrains Mono',monospace;margin-top:2px;"><i class="fa-solid fa-phone" style="font-size:9px;opacity:0.6;"></i> ${esc(p.telefono)}</div>` : ''}
+        ${p.observaciones ? `<div style="font-size:11px;color:#475569;font-style:italic;margin-top:5px;padding-top:5px;border-top:1px dashed #cbd5e1;">${esc(p.observaciones)}</div>` : ''}
+      </div>
+    </div>
+  `);
+  $cont.append($ficha);
+
   const $cards = $(`
     <div class="detalle-cards">
       <div class="detalle-card activas">
@@ -424,7 +450,6 @@ function abrirDetalleProfesional(id) {
   `);
   $cont.append($cards);
 
-  // Por semana
   const $secSem = $('<div>').append(
     $('<div class="detalle-seccion-titulo">').html('<i class="fa-solid fa-calendar-week"></i> Por Semana')
   );
@@ -455,7 +480,6 @@ function abrirDetalleProfesional(id) {
   `);
   $cont.append($secSem);
 
-  // Por franja
   const $secFranja = $('<div>').append(
     $('<div class="detalle-seccion-titulo">').html('<i class="fa-solid fa-clock"></i> Por Franja')
   );
@@ -1086,57 +1110,41 @@ function limpiarMesActual() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// PDF
+// IMPRESIÓN
 // ═══════════════════════════════════════════════════════════
-function showOverlay(texto, sub) {
-  $('#pdf-overlay-text').text(texto || 'Generando PDF...');
-  $('#pdf-overlay-sub').text(sub || '');
-  $('#pdf-overlay').removeClass('hidden');
+function imprimirContenido(html) {
+  $('#print-container').html(html);
+  document.body.classList.add('printing');
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => {
+      document.body.classList.remove('printing');
+      $('#print-container').empty();
+    }, 300);
+  }, 100);
 }
-function hideOverlay() { $('#pdf-overlay').addClass('hidden'); }
 
-function buildFilename(sufijo) {
+function headerImpresion(titulo) {
   const año = fechaActual.getFullYear();
-  const mes = fechaActual.getMonth() + 1;
-  return `Cronograma_${MESES[mes-1]}_${año}_${sufijo}`;
+  const mes = fechaActual.getMonth();
+  return `
+    <div class="print-header">
+      <img src="hospital.png" alt="Hospital">
+      <div class="print-header-center">
+        <h1>${esc(titulo)}</h1>
+        <h2>Hospital San Cristóbal "Julio C. Villanueva"</h2>
+        <span class="print-periodo">${MESES[mes]} ${año}</span>
+      </div>
+      <img src="santa fe.webp" alt="Santa Fe">
+    </div>
+  `;
 }
 
-async function generarPDFDesdeElemento(elemento, nombreArchivo) {
-  const { jsPDF } = window.jspdf;
+// ─── PLANILLA ───
+function imprimirPlanilla() {
+  $('#print-menu').addClass('hidden');
+  if (profesionales.length === 0) { alert('Cargá al menos un profesional.'); return; }
 
-  const canvas = await html2canvas(elemento, {
-    scale: 2,
-    useCORS: true,
-    backgroundColor: '#ffffff',
-    logging: false,
-    windowWidth: elemento.scrollWidth,
-    windowHeight: elemento.scrollHeight
-  });
-
-  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
-  const pageWidth = 210, pageHeight = 297;
-  const imgData = canvas.toDataURL('image/jpeg', 0.95);
-  const imgWidth = pageWidth;
-  const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-  if (imgHeight <= pageHeight) {
-    pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
-  } else {
-    let heightLeft = imgHeight, position = 0;
-    pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
-    while (heightLeft > 0) {
-      position = heightLeft - imgHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-    }
-  }
-
-  pdf.save(nombreArchivo + '.pdf');
-}
-
-function generarHTMLPlanilla() {
   const año = fechaActual.getFullYear();
   const mes = fechaActual.getMonth();
   const ultimoDia = new Date(año, mes + 1, 0).getDate();
@@ -1146,28 +1154,23 @@ function generarHTMLPlanilla() {
     const fecha = new Date(año, mes, d);
     const iso = toISO(fecha);
     const diaSem = fecha.getDay();
-    const esFindeDia = diaSem === 0 || diaSem === 6;
-    const esFeriadoDia = esFeriado(fecha);
+    if (diaSem === 0 || diaSem === 6) continue;
+
     const deshab = diasDeshabilitados[iso];
     const asigs = asignacionesMes[iso] || {};
-
-    if (esFindeDia) continue;
-
+    const fer = esFeriado(fecha);
     const clasesDia = ['dia'];
-    if (esFeriadoDia) clasesDia.push('dia-fer');
+    if (fer) clasesDia.push('dia-fer');
 
     filas += `<tr class="${deshab ? 'deshabilitado' : ''}">`;
     filas += `<td class="${clasesDia.join(' ')}">${d}</td>`;
-
     if (deshab) {
-      filas += `<td colspan="${franjas.length}" class="vacio">DESHABILITADO</td>`;
+      filas += `<td colspan="${franjas.length}" class="vacio">DÍA DESHABILITADO</td>`;
     } else {
       franjas.forEach(f => {
         const profId = asigs[f.id];
         const prof = profId ? getProf(profId) : null;
-        const diaNum = diaNumFranja(fecha);
-        const aplica = franjaAplicaDia(f, diaNum);
-
+        const aplica = franjaAplicaDia(f, diaNumFranja(fecha));
         if (!aplica) filas += `<td class="vacio">—</td>`;
         else if (prof) filas += `<td class="nombre">${esc(prof.nombre)}</td>`;
         else filas += `<td class="vacio">s/a</td>`;
@@ -1176,32 +1179,33 @@ function generarHTMLPlanilla() {
     filas += `</tr>`;
   }
 
-  let headersFranjas = '';
+  let headers = '';
   franjas.forEach(f => {
     const h = calcularHorasFranja(f);
-    headersFranjas += `<th>${esc(f.nombre)}<br><span style="font-size:7px;opacity:0.8">${f.desde}-${f.hasta} · ${h}h</span></th>`;
+    headers += `<th>${esc(f.nombre)}<span class="th-sub">${f.desde}-${f.hasta} · ${h}h</span></th>`;
   });
 
-  let filasFinde = '';
+  let sabItems = '', domItems = '';
   for (let d = 1; d <= ultimoDia; d++) {
     const fecha = new Date(año, mes, d);
     const iso = toISO(fecha);
-    const diaSem = fecha.getDay();
     const deshab = diasDeshabilitados[iso];
     const asigs = asignacionesMes[iso] || {};
 
-    if (diaSem === 6) {
-      const profId = asigs[SABADO_KEY];
-      const prof = profId ? getProf(profId) : null;
-      filasFinde += `<tr>
-        <td class="dia-fin">Sáb ${d}</td>
-        <td class="nombre">${deshab ? 'DESHAB' : (prof ? esc(prof.nombre) : 's/a')}</td>`;
-    } else if (diaSem === 0) {
-      const profId = asigs[DOMINGO_KEY];
-      const prof = profId ? getProf(profId) : null;
-      filasFinde += `<td class="dia-fin">Dom ${d}</td>
-        <td class="nombre">${deshab ? 'DESHAB' : (prof ? esc(prof.nombre) : 's/a')}</td>
-      </tr>`;
+    if (esSabado(fecha)) {
+      const p = asigs[SABADO_KEY] ? getProf(asigs[SABADO_KEY]) : null;
+      const nombre = deshab ? 'DESHAB' : (p ? p.nombre : 's/a');
+      sabItems += `<div class="print-finde-item ${!p && !deshab ? 'vacio' : ''}">
+        <span class="dia-num">${d}</span>
+        <span class="dia-nombre">${esc(nombre)}</span>
+      </div>`;
+    } else if (esDomingo(fecha)) {
+      const p = asigs[DOMINGO_KEY] ? getProf(asigs[DOMINGO_KEY]) : null;
+      const nombre = deshab ? 'DESHAB' : (p ? p.nombre : 's/a');
+      domItems += `<div class="print-finde-item ${!p && !deshab ? 'vacio' : ''}">
+        <span class="dia-num">${d}</span>
+        <span class="dia-nombre">${esc(nombre)}</span>
+      </div>`;
     }
   }
 
@@ -1210,209 +1214,226 @@ function generarHTMLPlanilla() {
   Object.keys(acum).forEach(pid => {
     const a = acum[pid];
     if (a.total === 0) return;
+    const prof = getProf(pid);
+    const tel = prof?.telefono ? `<span class="print-resumen-tel">${esc(prof.telefono)}</span>` : '';
     filasResumen += `<tr>
-      <td style="text-align:left;font-weight:700">${esc(a.nombre)}</td>
-      <td>${a.guardias}</td>
-      <td>${a.horasActivas} h</td>
-      <td>${a.horasPasivas} h</td>
-      <td class="total-col">${a.total} h</td>
+      <td class="nombre-col">${esc(a.nombre)}${tel}</td>
+      <td class="num">${a.guardias}</td>
+      <td class="num act">${a.horasActivas} h</td>
+      <td class="num pas">${a.horasPasivas} h</td>
+      <td class="num tot">${a.total} h</td>
     </tr>`;
   });
 
-  return `
-    <div class="hoja-pdf">
-      <div class="pdf-header">
-        <img src="hospital.png" alt="Hospital">
-        <div style="text-align:center;flex:1">
-          <h1>Cronograma Rayos — ${MESES[mes]} ${año}</h1>
-          <h2>Hospital San Cristóbal "Julio C. Villanueva"</h2>
-        </div>
-        <img src="santa fe.webp" alt="Santa Fe">
-      </div>
+  const html = `
+    <div class="print-page">
+      ${headerImpresion('Cronograma de Rayos')}
 
-      <div class="pdf-titulo-mes">CRONOGRAMA DE GUARDIAS</div>
-
-      <table class="pdf-tabla">
+      <div class="print-section-title">Planilla del Mes — Lunes a Viernes</div>
+      <table class="print-tabla">
         <thead>
           <tr>
-            <th style="width:30px">Día</th>
-            ${headersFranjas}
+            <th style="width:26px">Día</th>
+            ${headers}
           </tr>
         </thead>
-        <tbody>
-          ${filas}
-        </tbody>
+        <tbody>${filas}</tbody>
       </table>
 
-      ${filasFinde ? `
-        <div class="pdf-finde">
-          <div class="pdf-finde-titulo">Sábados y Domingos (24hs PASIVAS)</div>
-          <table class="pdf-tabla">
-            <tbody>${filasFinde}</tbody>
-          </table>
+      <div class="print-section-title">Sábados y Domingos (24hs Pasivas)</div>
+      <div class="print-finde-grid">
+        <div class="print-finde-card">
+          <div class="print-finde-card-title">Sábados</div>
+          <div class="print-finde-list">${sabItems}</div>
         </div>
-      ` : ''}
+        <div class="print-finde-card">
+          <div class="print-finde-card-title">Domingos</div>
+          <div class="print-finde-list">${domItems}</div>
+        </div>
+      </div>
 
-      <div class="pdf-resumen">
-        <div class="pdf-resumen-titulo">Horas del Mes</div>
+      <div class="print-resumen">
+        <div class="print-section-title">Resumen de Horas por Profesional</div>
         <table>
           <thead>
             <tr>
-              <th style="text-align:left">Profesional</th>
-              <th>Guardias</th>
-              <th>Horas Activas</th>
-              <th>Horas Pasivas</th>
-              <th>Total</th>
+              <th>Profesional</th>
+              <th class="num">Guardias</th>
+              <th class="num">Activas</th>
+              <th class="num">Pasivas</th>
+              <th class="num">Total</th>
             </tr>
           </thead>
           <tbody>
             ${filasResumen}
             <tr class="total-general">
-              <td colspan="4" style="text-align:right">TOTAL MES</td>
-              <td>${totalHoras} h</td>
+              <td colspan="4" style="text-align:right">Total Mes</td>
+              <td class="num">${totalHoras} h</td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <div class="pdf-firmas">
-        <div class="pdf-firma-box">Firma Responsable</div>
-        <div class="pdf-firma-box">Aclaración</div>
-      </div>
-
-      <div class="pdf-footer">
+      <div class="print-footer">
         <span>Documento generado automáticamente</span>
         <span>${new Date().toLocaleDateString('es-AR')}</span>
       </div>
     </div>
   `;
+
+  imprimirContenido(html);
 }
 
-function generarHTMLCalendarioPDF() {
+// ─── CALENDARIO VISUAL ───
+function imprimirCalendario() {
+  $('#print-menu').addClass('hidden');
+  if (profesionales.length === 0) { alert('Cargá al menos un profesional.'); return; }
+
   const año = fechaActual.getFullYear();
   const mes = fechaActual.getMonth();
   const primerDia = new Date(año, mes, 1);
   const ultimoDia = new Date(año, mes + 1, 0);
   const offset = diaIdxLunes0(primerDia);
 
-  let celdas = '';
-  ['LUN','MAR','MIÉ','JUE','VIE','SÁB','DOM'].forEach(d => {
-    celdas += `<div class="pdf-cal-header">${d}</div>`;
-  });
-
+  const celdas = [];
   const mesAntUltimo = new Date(año, mes, 0).getDate();
   for (let i = offset - 1; i >= 0; i--) {
-    celdas += `<div class="pdf-cal-celda fuera"><div class="pdf-cal-num">${mesAntUltimo - i}</div></div>`;
+    celdas.push({ fecha: new Date(año, mes - 1, mesAntUltimo - i), fuera: true });
   }
-
   for (let d = 1; d <= ultimoDia.getDate(); d++) {
-    const fecha = new Date(año, mes, d);
-    const iso = toISO(fecha);
-    const diaSem = fecha.getDay();
-    const esFindeDia = diaSem === 0 || diaSem === 6;
-    const esFeriadoDia = esFeriado(fecha);
-    const deshab = diasDeshabilitados[iso];
-    const asigs = asignacionesMes[iso] || {};
-
-    const clases = ['pdf-cal-celda'];
-    if (esFindeDia) clases.push('finde');
-    if (esFeriadoDia) clases.push('feriado');
-    if (deshab) clases.push('deshab');
-
-    let chips = '';
-    if (deshab) {
-      chips = `<div style="font-size:7px;color:#64748b;font-weight:700;text-align:center;margin-top:4px">DESHAB</div>`;
-    } else if (esFindeDia) {
-      const key = diaSem === 6 ? SABADO_KEY : DOMINGO_KEY;
-      const colorFinde = diaSem === 6 ? '#a16207' : '#b91c1c';
-      const profId = asigs[key];
-      if (profId) {
-        const p = getProf(profId);
-        if (p) chips += `<div class="pdf-cal-chip" style="background:${colorFinde}">${esc(p.nombre)}<br>24h</div>`;
-      }
-    } else {
-      const diaNum = diaNumFranja(fecha);
-      franjas.forEach(f => {
-        if (!franjaAplicaDia(f, diaNum)) return;
-        const profId = asigs[f.id];
-        if (!profId) return;
-        const p = getProf(profId);
-        if (!p) return;
-        chips += `<div class="pdf-cal-chip" style="background:${f.color}">${esc(p.nombre)}</div>`;
-      });
-    }
-
-    celdas += `<div class="${clases.join(' ')}">
-      <div class="pdf-cal-num">${d}</div>
-      ${chips}
-    </div>`;
+    celdas.push({ fecha: new Date(año, mes, d), fuera: false });
   }
-
   const totalCeldas = offset + ultimoDia.getDate();
   const restantes = (7 - (totalCeldas % 7)) % 7;
   for (let i = 1; i <= restantes; i++) {
-    celdas += `<div class="pdf-cal-celda fuera"><div class="pdf-cal-num">${i}</div></div>`;
+    celdas.push({ fecha: new Date(año, mes + 1, i), fuera: true });
   }
 
-  return `
-    <div class="hoja-calendario-pdf">
-      <div class="pdf-header">
-        <img src="hospital.png" alt="Hospital">
-        <div style="text-align:center;flex:1">
-          <h1>Cronograma Rayos — ${MESES[mes]} ${año}</h1>
-          <h2>Hospital San Cristóbal "Julio C. Villanueva"</h2>
-        </div>
-        <img src="santa fe.webp" alt="Santa Fe">
+  let gridHTML = '';
+  ['LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADO','DOMINGO'].forEach(d => {
+    gridHTML += `<div class="print-cal2-header">${d}</div>`;
+  });
+
+  celdas.forEach(c => {
+    const iso = toISO(c.fecha);
+    const diaSem = c.fecha.getDay();
+    const esFindeDia = diaSem === 0 || diaSem === 6;
+    const esFer = esFeriado(c.fecha);
+    const deshab = diasDeshabilitados[iso];
+
+    const clases = ['print-cal2-celda'];
+    if (c.fuera) clases.push('fuera');
+    if (esFindeDia && !c.fuera) clases.push('finde');
+    if (esFer && !c.fuera) clases.push('feriado');
+    if (deshab) clases.push('deshab');
+
+    let contenido = `<div class="print-cal2-num">${c.fecha.getDate()}</div>`;
+
+    if (!c.fuera && !deshab) {
+      const asigs = asignacionesMes[iso] || {};
+
+      if (esFindeDia) {
+        const key = esSabado(c.fecha) ? SABADO_KEY : DOMINGO_KEY;
+        const colorFinde = esSabado(c.fecha) ? '#a16207' : '#b91c1c';
+        const profId = asigs[key];
+        if (profId) {
+          const p = getProf(profId);
+          if (p) {
+            const etiqFinde = esSabado(c.fecha) ? 'Sábado' : 'Domingo';
+            contenido += `
+              <div class="print-cal2-bloque">
+                <div class="print-cal2-head">
+                  <span class="print-cal2-bullet" style="background:${colorFinde};"></span>
+                  <span class="print-cal2-etiqueta">${etiqFinde}</span>
+                </div>
+                <div class="print-cal2-nombre">${esc(p.nombre)}</div>
+              </div>`;
+          }
+        }
+      } else {
+        franjas.forEach(f => {
+          if (!franjaAplicaDia(f, diaNumFranja(c.fecha))) return;
+          const profId = asigs[f.id];
+          if (!profId) return;
+          const p = getProf(profId);
+          if (!p) return;
+          const abrev = abrevFranja(f.nombre, f.etiqueta);
+          contenido += `
+            <div class="print-cal2-bloque">
+              <div class="print-cal2-head">
+                <span class="print-cal2-bullet" style="background:${f.color};"></span>
+                <span class="print-cal2-etiqueta">${esc(abrev)}</span>
+              </div>
+              <div class="print-cal2-nombre">${esc(p.nombre)}</div>
+            </div>`;
+        });
+      }
+    } else if (!c.fuera && deshab) {
+      contenido += `<div class="print-cal2-deshab">DESHAB.</div>`;
+    }
+
+    gridHTML += `<div class="${clases.join(' ')}">${contenido}</div>`;
+  });
+
+  const htmlFinal = `
+    <div class="print-page print-page-calendario">
+      ${headerImpresion('Calendario de Rayos')}
+      <div class="print-cal2-grid">
+        ${gridHTML}
       </div>
-      <div class="pdf-cal-grid">${celdas}</div>
-      <div class="pdf-footer">
+      <div class="print-footer">
         <span>Documento generado automáticamente</span>
         <span>${new Date().toLocaleDateString('es-AR')}</span>
       </div>
     </div>
   `;
+
+  imprimirContenido(htmlFinal);
 }
 
-async function imprimirPlanillaPDF() {
+// ─── PROFESIONALES ───
+function imprimirProfesionales() {
   $('#print-menu').addClass('hidden');
   if (profesionales.length === 0) { alert('Cargá al menos un profesional.'); return; }
-  showOverlay('Generando PDF Planilla...', 'Esto puede tardar unos segundos');
 
-  const $cont = $('#pdf-render-container').empty();
-  const $wrapper = $('<div>').html(generarHTMLPlanilla());
-  $cont.append($wrapper);
+  const { acum } = calcularHoras();
 
-  await new Promise(r => setTimeout(r, 400));
-  try {
-    await generarPDFDesdeElemento($wrapper[0], buildFilename('Planilla'));
-  } catch(err) {
-    console.error(err);
-    alert('Error al generar el PDF: ' + err.message);
-  } finally {
-    hideOverlay();
-    $cont.empty();
-  }
-}
+  let tarjetas = '';
+  profesionales.forEach(p => {
+    const a = acum[p.id] || { guardias: 0, horasActivas: 0, horasPasivas: 0, total: 0 };
+    const obs = p.observaciones ? `<div class="print-prof-obs">${esc(p.observaciones)}</div>` : '';
+    tarjetas += `
+      <div class="print-prof-card">
+        <div class="print-prof-color" style="background:${p.color}"></div>
+        <div class="print-prof-info">
+          <div class="print-prof-nombre">${esc(p.nombre)}</div>
+          ${p.telefono ? `<div class="print-prof-tel"><i class="fa-solid fa-phone"></i> ${esc(p.telefono)}</div>` : ''}
+          ${obs}
+        </div>
+        <div class="print-prof-horas">
+          <div><span class="act">${a.horasActivas}h act</span></div>
+          <div><span class="pas">${a.horasPasivas}h pas</span></div>
+          <div class="print-prof-total">${a.total}h</div>
+        </div>
+      </div>
+    `;
+  });
 
-async function imprimirCalendarioPDF() {
-  $('#print-menu').addClass('hidden');
-  if (profesionales.length === 0) { alert('Cargá al menos un profesional.'); return; }
-  showOverlay('Generando PDF Calendario...', 'Esto puede tardar unos segundos');
+  const html = `
+    <div class="print-page">
+      ${headerImpresion('Profesionales del Servicio')}
+      <div class="print-section-title">Listado, Datos y Horas del Mes</div>
+      <div class="print-prof-grid">
+        ${tarjetas}
+      </div>
+      <div class="print-footer">
+        <span>Documento generado automáticamente</span>
+        <span>${new Date().toLocaleDateString('es-AR')}</span>
+      </div>
+    </div>
+  `;
 
-  const $cont = $('#pdf-render-container').empty();
-  const $wrapper = $('<div>').html(generarHTMLCalendarioPDF());
-  $cont.append($wrapper);
-
-  await new Promise(r => setTimeout(r, 400));
-  try {
-    await generarPDFDesdeElemento($wrapper[0], buildFilename('Calendario'));
-  } catch(err) {
-    console.error(err);
-    alert('Error al generar el PDF: ' + err.message);
-  } finally {
-    hideOverlay();
-    $cont.empty();
-  }
+  imprimirContenido(html);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1494,8 +1515,9 @@ $(document).ready(function() {
     }
   });
 
-  $('[data-action="pdf-planilla"]').on('click', () => imprimirPlanillaPDF());
-  $('[data-action="pdf-calendario"]').on('click', () => imprimirCalendarioPDF());
+  $('[data-action="print-planilla"]').on('click', () => imprimirPlanilla());
+  $('[data-action="print-calendario"]').on('click', () => imprimirCalendario());
+  $('[data-action="print-profesionales"]').on('click', () => imprimirProfesionales());
   $('[data-action="exportar-json"]').on('click', () => { exportarJSON(); $('#print-menu').addClass('hidden'); });
   $('[data-action="importar-json"]').on('click', () => { $('#file-import').click(); $('#print-menu').addClass('hidden'); });
   $('[data-action="limpiar-mes"]').on('click', () => { limpiarMesActual(); $('#print-menu').addClass('hidden'); });
