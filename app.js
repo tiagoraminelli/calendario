@@ -12,6 +12,7 @@ let colorSeleccionado = null;
 let tipoHoraSeleccionado = 'activa';
 let editandoProfId = null;
 let diaEditandoISO = null;
+let nombreCronograma = 'CRONOGRAMA RAYOS';
 
 const DIAS_SEMANA = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -72,8 +73,8 @@ function numeroSemanaDelMes(fecha, año, mes) {
   const primerDiaMes = new Date(año, mes, 1);
   const lunesPrimera = lunesDeSemana(primerDiaMes);
   const lunesEsta = lunesDeSemana(fecha);
-  const diff = Math.round((lunesEsta - lunesPrimera) / (7 * 24 * 60 * 60 * 1000));
-  return diff + 1;
+  const diffDias = Math.floor((lunesEsta - lunesPrimera) / (24 * 60 * 60 * 1000));
+  return Math.floor(diffDias / 7) + 1;
 }
 
 function cantidadSemanasDelMes(año, mes) {
@@ -137,7 +138,8 @@ const LS = {
   profesionales: 'cronograma_profesionales',
   asignaciones: 'cronograma_asignaciones',
   deshabilitados: 'cronograma_dias_deshabilitados',
-  patron: 'cronograma_patron_semana'
+  patron: 'cronograma_patron_semana',
+  nombre: 'cronograma_nombre_app'
 };
 
 function cargarDatos() {
@@ -159,6 +161,9 @@ function cargarDatos() {
 
   try { patronPorSemana = JSON.parse(localStorage.getItem(LS.patron)) || {}; } catch(e) { patronPorSemana = {}; }
   if (typeof patronPorSemana !== 'object' || Array.isArray(patronPorSemana)) patronPorSemana = {};
+
+  const nombreGuardado = localStorage.getItem(LS.nombre);
+  if (nombreGuardado) nombreCronograma = nombreGuardado;
 }
 
 const guardar = {
@@ -166,7 +171,8 @@ const guardar = {
   profes: () => localStorage.setItem(LS.profesionales, JSON.stringify(profesionales)),
   asig: () => localStorage.setItem(LS.asignaciones, JSON.stringify(asignacionesMes)),
   deshabilitados: () => localStorage.setItem(LS.deshabilitados, JSON.stringify(diasDeshabilitados)),
-  patron: () => localStorage.setItem(LS.patron, JSON.stringify(patronPorSemana))
+  patron: () => localStorage.setItem(LS.patron, JSON.stringify(patronPorSemana)),
+  nombre: () => localStorage.setItem(LS.nombre, nombreCronograma)
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -191,6 +197,45 @@ function actualizarBotonToggleDia() {
     $btn.removeClass('reactivar');
     $txt.text('Deshabilitar día');
   }
+}
+
+// ═══════════════════════════════════════════════════════════
+// TÍTULO DINÁMICO
+// ═══════════════════════════════════════════════════════════
+function actualizarTituloApp() {
+  $('#titulo-app').contents().first().replaceWith(nombreCronograma + ' ');
+  document.title = `${nombreCronograma} - Hospital San Cristóbal`;
+}
+
+function abrirModalNombre() {
+  $('#inp-nombre-cronograma').val(nombreCronograma);
+  $('#preview-nombre').text(nombreCronograma);
+  $('#modal-nombre').removeClass('hidden');
+  setTimeout(() => {
+    $('#inp-nombre-cronograma').focus().select();
+  }, 100);
+}
+
+function aplicarNombreCronograma() {
+  const nuevo = $('#inp-nombre-cronograma').val().trim();
+  if (!nuevo) {
+    $('#inp-nombre-cronograma').addClass('border-rose-400');
+    setTimeout(() => $('#inp-nombre-cronograma').removeClass('border-rose-400'), 1200);
+    return;
+  }
+  nombreCronograma = nuevo.toUpperCase();
+  guardar.nombre();
+  actualizarTituloApp();
+  $('#modal-nombre').addClass('hidden');
+}
+
+function restablecerNombreCronograma() {
+  if (!confirm('¿Restablecer el nombre original "CRONOGRAMA RAYOS"?')) return;
+  nombreCronograma = 'CRONOGRAMA RAYOS';
+  $('#inp-nombre-cronograma').val(nombreCronograma);
+  $('#preview-nombre').text(nombreCronograma);
+  guardar.nombre();
+  actualizarTituloApp();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -258,6 +303,7 @@ function crearCelda(fecha, fueraMes, hoyISO) {
         if (p) {
           const $chip = $('<div>').addClass('asig-chip finde-chip').css('background', colorFinde);
           $chip.html(`<span><i class="fa-solid fa-clock text-[8px] mr-1"></i>${esc(p.nombre)}</span><span class="franja-mini">24h</span>`);
+          $chip.attr('title', `${p.nombre} · ${esSabado(fecha) ? 'Sábado' : 'Domingo'} 24h`);
           $asigs.append($chip);
         }
       }
@@ -269,6 +315,7 @@ function crearCelda(fecha, fueraMes, hoyISO) {
         if (!p) return;
         const $chip = $('<div>').addClass('asig-chip').css('background', f.color);
         $chip.html(`<span>${esc(p.nombre)}</span><span class="franja-mini">${f.desde}</span>`);
+        $chip.attr('title', `${p.nombre} · ${f.nombre} (${f.desde}–${f.hasta})`);
         $asigs.append($chip);
       });
     }
@@ -618,35 +665,45 @@ function renderFranjas() {
           </div>
           <div class="franja-horario">${f.desde} - ${f.hasta} · ${horas}h · ${textoDiasFranja(f)}</div>
         </div>
-        <button class="prof-btn delete" data-del-franja="${f.id}" title="Eliminar">
-          <i class="fa-solid fa-trash-can text-[10px]"></i>
-        </button>
+        <div class="prof-acciones">
+          <button class="prof-btn" data-edit-franja="${f.id}" title="Editar">
+            <i class="fa-solid fa-pen text-[10px]"></i>
+          </button>
+          <button class="prof-btn delete" data-del-franja="${f.id}" title="Eliminar">
+            <i class="fa-solid fa-trash-can text-[10px]"></i>
+          </button>
+        </div>
       </div>
     `);
     $cont.append($card);
   });
 }
 
-function abrirModalFranja() {
-  $('#titulo-modal-franja').text('Nueva Franja');
-  $('#franja-nombre').val('');
-  $('#franja-etiqueta').val('');
-  $('#franja-desde').val('08:00');
-  $('#franja-hasta').val('12:00');
-  colorSeleccionado = PALETA_COLORES[0].valor;
-  tipoHoraSeleccionado = 'activa';
+function abrirModalFranja(id = null) {
+  const editando = !!id;
+  const f = editando ? franjas.find(x => x.id === id) : null;
+
+  $('#titulo-modal-franja').text(editando ? 'Editar Franja' : 'Nueva Franja');
+  $('#franja-nombre').val(f ? f.nombre : '');
+  $('#franja-etiqueta').val(f ? (f.etiqueta || '') : '');
+  $('#franja-desde').val(f ? f.desde : '08:00');
+  $('#franja-hasta').val(f ? f.hasta : '12:00');
+  colorSeleccionado = f ? f.color : PALETA_COLORES[0].valor;
+  tipoHoraSeleccionado = f ? f.tipo : 'activa';
 
   $('.tipo-check-btn').removeClass('activo');
-  $('.tipo-check-btn[data-tipo="activa"]').addClass('activo');
-  $('input[name="franja-tipo"][value="activa"]').prop('checked', true);
+  $(`.tipo-check-btn[data-tipo="${tipoHoraSeleccionado}"]`).addClass('activo');
+  $(`input[name="franja-tipo"][value="${tipoHoraSeleccionado}"]`).prop('checked', true);
 
+  const diasActivos = f ? f.dias : [1,2,3,4,5];
   $('#franja-dias-container .dia-check-btn').each(function() {
     const dia = Number($(this).data('dia'));
-    const activo = dia >= 1 && dia <= 5;
+    const activo = diasActivos.includes(dia);
     $(this).toggleClass('activo', activo);
     $(this).find('input').prop('checked', activo);
   });
 
+  $('#btn-guardar-franja').data('edit-id', editando ? id : null);
   renderPaletaColores();
   $('#modal-franja').removeClass('hidden');
 }
@@ -671,9 +728,7 @@ function guardarFranja() {
 
   const diasSel = [];
   $('#franja-dias-container .dia-check-btn').each(function() {
-    if ($(this).hasClass('activo')) {
-      diasSel.push(Number($(this).data('dia')));
-    }
+    if ($(this).hasClass('activo')) diasSel.push(Number($(this).data('dia')));
   });
 
   if (diasSel.length === 0) {
@@ -681,20 +736,28 @@ function guardarFranja() {
     return;
   }
 
-  franjas.push({
-    id: 'f_' + Date.now(),
+  const editId = $('#btn-guardar-franja').data('edit-id');
+  const datos = {
     nombre,
     etiqueta: $('#franja-etiqueta').val().trim(),
     desde, hasta,
     color: colorSeleccionado || '#64748b',
     tipo: tipoHoraSeleccionado,
     dias: diasSel
-  });
+  };
+
+  if (editId) {
+    const idx = franjas.findIndex(f => f.id === editId);
+    if (idx >= 0) franjas[idx] = { ...franjas[idx], ...datos };
+  } else {
+    franjas.push({ id: 'f_' + Date.now(), ...datos });
+  }
 
   guardar.franjas();
   renderFranjas();
   renderCalendario();
   $('#modal-franja').addClass('hidden');
+  $('#btn-guardar-franja').removeData('edit-id');
 }
 
 function eliminarFranja(id) {
@@ -1057,7 +1120,7 @@ function renderTablaHoras() {
 // EXPORT / IMPORT / LIMPIAR
 // ═══════════════════════════════════════════════════════════
 function exportarJSON() {
-  const data = { franjas, profesionales, asignacionesMes, diasDeshabilitados, patronPorSemana };
+  const data = { nombreCronograma, franjas, profesionales, asignacionesMes, diasDeshabilitados, patronPorSemana };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const $a = $('<a>').attr({ href: url, download: `cronograma_${toISO(new Date())}.json` });
@@ -1072,6 +1135,11 @@ function importarJSON(file) {
   reader.onload = (e) => {
     try {
       const data = JSON.parse(e.target.result);
+      if (data.nombreCronograma) {
+        nombreCronograma = data.nombreCronograma;
+        guardar.nombre();
+        actualizarTituloApp();
+      }
       if (data.franjas) franjas = data.franjas;
       if (data.profesionales) profesionales = data.profesionales;
       if (data.asignacionesMes) asignacionesMes = data.asignacionesMes;
@@ -1131,8 +1199,8 @@ function headerImpresion(titulo) {
     <div class="print-header">
       <img src="hospital.png" alt="Hospital">
       <div class="print-header-center">
-        <h1>${esc(titulo)}</h1>
-        <h2>Hospital San Cristóbal "Julio C. Villanueva"</h2>
+        <h1>${esc(nombreCronograma)}</h1>
+        <h2>${esc(titulo)} — Hospital San Cristóbal "Julio C. Villanueva"</h2>
         <span class="print-periodo">${MESES[mes]} ${año}</span>
       </div>
       <img src="santa fe.webp" alt="Santa Fe">
@@ -1227,7 +1295,7 @@ function imprimirPlanilla() {
 
   const html = `
     <div class="print-page">
-      ${headerImpresion('Cronograma de Rayos')}
+      ${headerImpresion('Planilla del Mes')}
 
       <div class="print-section-title">Planilla del Mes — Lunes a Viernes</div>
       <table class="print-tabla">
@@ -1378,7 +1446,7 @@ function imprimirCalendario() {
 
   const htmlFinal = `
     <div class="print-page print-page-calendario">
-      ${headerImpresion('Calendario de Rayos')}
+      ${headerImpresion('Calendario')}
       <div class="print-cal2-grid">
         ${gridHTML}
       </div>
@@ -1422,7 +1490,7 @@ function imprimirProfesionales() {
 
   const html = `
     <div class="print-page">
-      ${headerImpresion('Profesionales del Servicio')}
+      ${headerImpresion('Profesionales')}
       <div class="print-section-title">Listado, Datos y Horas del Mes</div>
       <div class="print-prof-grid">
         ${tarjetas}
@@ -1443,9 +1511,26 @@ function imprimirProfesionales() {
 $(document).ready(function() {
 
   cargarDatos();
+  actualizarTituloApp();
   renderFranjas();
   renderProfesionales();
   renderCalendario();
+
+$('#titulo-app').on('click', abrirModalNombre);
+$('#btn-guardar-nombre').on('click', aplicarNombreCronograma);
+$('#btn-reset-nombre').on('click', restablecerNombreCronograma);
+
+// Vista previa en vivo + Enter para guardar
+$('#inp-nombre-cronograma').on('input', function() {
+  const v = $(this).val().trim();
+  $('#preview-nombre').text(v || 'CRONOGRAMA RAYOS');
+});
+$('#inp-nombre-cronograma').on('keypress', function(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    aplicarNombreCronograma();
+  }
+});
 
   $('#btn-mes-ant').on('click', () => cambiarMes(-1));
   $('#btn-mes-sig').on('click', () => cambiarMes(1));
@@ -1461,8 +1546,11 @@ $(document).ready(function() {
   $(document).on('click', '[data-edit]', function() { abrirModalProfesional($(this).data('edit')); });
   $(document).on('click', '[data-delete]', function() { eliminarProfesional($(this).data('delete')); });
 
-  $('#btn-nueva-franja').on('click', abrirModalFranja);
+  $('#btn-nueva-franja').on('click', () => abrirModalFranja());
   $('#btn-guardar-franja').on('click', guardarFranja);
+  $(document).on('click', '[data-edit-franja]', function() {
+    abrirModalFranja($(this).data('edit-franja'));
+  });
   $(document).on('click', '[data-del-franja]', function() { eliminarFranja($(this).data('del-franja')); });
 
   $(document).on('click', '.dia-check-btn', function(e) {
