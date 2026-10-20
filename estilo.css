@@ -863,6 +863,15 @@ body.printing #print-container { display: block !important; }
   text-transform: capitalize;
   letter-spacing: 0.01em;
 }
+.print-cal2-horario {
+  font-size: 6.5px;
+  color: #64748b;
+  font-family: "JetBrains Mono", monospace;
+  letter-spacing: 0;
+  margin-left: 2px;
+  text-transform: lowercase;
+}
+
 
 .print-cal2-nombre {
   font-weight: 800;
