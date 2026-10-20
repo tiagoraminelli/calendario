@@ -1363,6 +1363,7 @@ function imprimirCalendario() {
               <div class="print-cal2-head">
                 <span class="print-cal2-bullet" style="background:${f.color};"></span>
                 <span class="print-cal2-etiqueta">${esc(abrev)}</span>
+                <span class="print-cal2-horario">(${f.desde}-${f.hasta})</span>
               </div>
               <div class="print-cal2-nombre">${esc(p.nombre)}</div>
             </div>`;
